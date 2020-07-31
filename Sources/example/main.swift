@@ -1,4 +1,4 @@
-import libusb_swift
+import LibUSB
 
 let x = libusb_swift()
 print(x.text)

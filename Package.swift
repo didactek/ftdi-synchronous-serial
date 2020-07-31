@@ -11,8 +11,8 @@ let package = Package(
             name: "example",
             targets: ["example"]),
         .library(
-            name: "ftdi-synchronous-serial",
-            targets: ["ftdi-synchronous-serial"]),
+            name: "LibUSB",
+            targets: ["LibUSB"]),
         .library(
             name: "CLibUSB",
             targets: ["CLibUSB"]),
@@ -26,14 +26,14 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "example",
-            dependencies: ["ftdi-synchronous-serial"]),
+            dependencies: ["LibUSB"]),
         .target(
-            name: "ftdi-synchronous-serial",
+            name: "LibUSB",
             dependencies: ["CLibUSB"]),
         .systemLibrary(  // FIXME: provider: brew...
             name: "CLibUSB"),
         .testTarget(
             name: "ftdi-synchronous-serialTests",
-            dependencies: ["ftdi-synchronous-serial"]),
+            dependencies: ["LibUSB"]),
     ]
 )
