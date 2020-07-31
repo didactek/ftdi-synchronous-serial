@@ -14,8 +14,8 @@ let package = Package(
             name: "libusb-swift",
             targets: ["libusb-swift"]),
         .library(
-            name: "libusb-bridge",
-            targets: ["libusb-bridge"]),
+            name: "CLibUSB",
+            targets: ["CLibUSB"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -29,9 +29,9 @@ let package = Package(
             dependencies: ["libusb-swift"]),
         .target(
             name: "libusb-swift",
-            dependencies: ["libusb-bridge"]),
+            dependencies: ["CLibUSB"]),
         .systemLibrary(  // FIXME: provider: brew...
-            name: "libusb-bridge"),
+            name: "CLibUSB"),
         .testTarget(
             name: "libusb-swiftTests",
             dependencies: ["libusb-swift"]),
