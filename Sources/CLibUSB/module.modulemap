@@ -1,4 +1,5 @@
-module libusb_bridge [system] {
+module CLibUSB [system] {
   header "LibUSBUmbrella.h"
+  link "usb"
   export *
 }
