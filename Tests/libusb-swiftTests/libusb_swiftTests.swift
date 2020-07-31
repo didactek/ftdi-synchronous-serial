@@ -1,5 +1,5 @@
 import XCTest
-@testable import libusb_swift
+@testable import LibUSB
 
 final class libusb_swiftTests: XCTestCase {
     func testExample() {
