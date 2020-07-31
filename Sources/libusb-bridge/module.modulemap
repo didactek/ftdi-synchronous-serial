@@ -1,0 +1,4 @@
+module libusb_bridge [system] {
+  header "LibUSBUmbrella.h"
+  export *
+}
