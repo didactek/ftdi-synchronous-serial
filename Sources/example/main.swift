@@ -1,3 +1,4 @@
 import libusb_swift
 
-print("hello, world!")
+let x = libusb_swift()
+print(x.text)

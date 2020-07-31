@@ -13,6 +13,9 @@ let package = Package(
         .library(
             name: "ftdi-synchronous-serial",
             targets: ["ftdi-synchronous-serial"]),
+        .library(
+            name: "libusb-bridge",
+            targets: ["libusb-bridge"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -26,7 +29,9 @@ let package = Package(
             dependencies: ["ftdi-synchronous-serial"]),
         .target(
             name: "ftdi-synchronous-serial",
-            dependencies: []),
+            dependencies: ["libusb-bridge"]),
+        .systemLibrary(  // FIXME: provider: brew...
+            name: "libusb-bridge"),
         .testTarget(
             name: "ftdi-synchronous-serialTests",
             dependencies: ["ftdi-synchronous-serial"]),
