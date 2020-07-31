@@ -30,8 +30,14 @@ let package = Package(
         .target(
             name: "LibUSB",
             dependencies: ["CLibUSB"]),
-        .systemLibrary(  // FIXME: provider: brew...
-            name: "CLibUSB"),
+        .systemLibrary(
+            name: "CLibUSB",
+            pkgConfig: "libusb-1.0",
+            providers: [
+                .brew(["libusb"]),
+                .apt(["libusb"]),
+            ]
+        ),
         .testTarget(
             name: "ftdi-synchronous-serialTests",
             dependencies: ["LibUSB"]),
