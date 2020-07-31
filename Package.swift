@@ -11,8 +11,8 @@ let package = Package(
             name: "example",
             targets: ["example"]),
         .library(
-            name: "libusb-swift",
-            targets: ["libusb-swift"]),
+            name: "LibUSB",
+            targets: ["LibUSB"]),
         .library(
             name: "CLibUSB",
             targets: ["CLibUSB"]),
@@ -26,14 +26,14 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "example",
-            dependencies: ["libusb-swift"]),
+            dependencies: ["LibUSB"]),
         .target(
-            name: "libusb-swift",
+            name: "LibUSB",
             dependencies: ["CLibUSB"]),
         .systemLibrary(  // FIXME: provider: brew...
             name: "CLibUSB"),
         .testTarget(
             name: "libusb-swiftTests",
-            dependencies: ["libusb-swift"]),
+            dependencies: ["LibUSB"]),
     ]
 )
