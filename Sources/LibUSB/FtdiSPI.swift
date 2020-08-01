@@ -11,6 +11,7 @@ import Foundation
 import CLibUSB
 
 public class FtdiSPI: LinkSPI {
+    static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
     enum SPIError: Error {
     }
 
@@ -23,7 +24,24 @@ public class FtdiSPI: LinkSPI {
         let serialNumber = 0x00
         let index = 0x00
 
+        // scan for devices:
+        let devices = UnsafeMutablePointer<UnsafeMutablePointer<OpaquePointer?>?>.allocate(capacity: 1)
+        defer {
+            devices.deallocate()
+        }
+        let deviceCount = libusb_get_device_list(Self.ctx, devices)
+        print("found \(deviceCount) devices")
+        exit(0)
+
         //devdesc = UsbDeviceDescriptor(vendor, product, bus, address, serial, index, None)
+        var device: OpaquePointer? = nil
+
+        // find the device
+
+        var handle: OpaquePointer? = nil
+        withUnsafeMutablePointer(to: &handle) {handle in
+            let result = libusb_open(device, handle)
+        }
 
         // switch to MPSSE
         // configure MPSSE
@@ -44,7 +62,7 @@ public class FtdiSPI: LinkSPI {
     }
 
     public static func closeUSBLibrary() {
-        libusb_exit(nil)
+        libusb_exit(ctx)
     }
 }
 
