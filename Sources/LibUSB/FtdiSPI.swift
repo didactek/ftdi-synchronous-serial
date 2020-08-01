@@ -28,18 +28,34 @@ public class FtdiSPI: LinkSPI {
             devices.deallocate()
         }
         let deviceCount = libusb_get_device_list(Self.ctx, devices)
+        guard deviceCount > 0 else {
+            fatalError("no USB devices found")
+        }
         print("found \(deviceCount) devices")
-        exit(0)
         
+        
+
         //devdesc = UsbDeviceDescriptor(vendor, product, bus, address, serial, index, None)
-        var device: OpaquePointer? = nil
+        let device = OpaquePointer(devices[0])
         
+        #if true // FIXME: vendor/product is not stable from this code; probably getting pass-by-reference wrong in bridging?
+        var descriptor = libusb_device_descriptor()
+        let _ = libusb_get_device_descriptor(device, &descriptor)
+        print("vendor:", descriptor.idVendor)
+        print("product:", descriptor.idProduct)
+        #endif
         // find the device
-        
+
+        // use the device:
+        #if false  // FIXME: crashes; another example of getting pass-by-reference wrong?
         var handle: OpaquePointer? = nil
         withUnsafeMutablePointer(to: &handle) {handle in
             let result = libusb_open(device, handle)
+            guard result == 0 else {
+                fatalError("error binding device to a handle")
+            }
         }
+        #endif
 
         // switch to MPSSE
         // configure MPSSE
