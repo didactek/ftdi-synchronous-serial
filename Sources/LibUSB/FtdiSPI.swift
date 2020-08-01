@@ -43,5 +43,8 @@ public class FtdiSPI: LinkSPI {
         }
     }
 
+    public static func closeUSBLibrary() {
+        libusb_exit(nil)
+    }
 }
 
