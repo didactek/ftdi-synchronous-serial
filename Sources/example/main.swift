@@ -8,6 +8,9 @@
 import Foundation
 import LibUSB
 
+exerciseC()
+exit(0)
+
 FtdiSPI.initializeUSBLibrary()
 defer {
     FtdiSPI.closeUSBLibrary()

@@ -16,6 +16,9 @@ let package = Package(
         .library(
             name: "CLibUSB",
             targets: ["CLibUSB"]),
+        .library(
+            name: "CInterop",
+            targets: ["CInterop"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -26,10 +29,13 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "example",
-            dependencies: ["LibUSB"]),
+            dependencies: ["LibUSB", "CInterop"]),
         .target(
             name: "LibUSB",
             dependencies: ["CLibUSB"]),
+        .target(
+            name: "CInterop",
+            dependencies: []),
         .systemLibrary(
             name: "CLibUSB",
             pkgConfig: "libusb-1.0",
