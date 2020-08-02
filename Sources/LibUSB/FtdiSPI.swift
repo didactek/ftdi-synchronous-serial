@@ -36,15 +36,11 @@ public class FtdiSPI: LinkSPI {
         // find the device
 
         // use the device:
-        #if false  // FIXME: crashes; another example of getting pass-by-reference wrong?
         var handle: OpaquePointer? = nil
-        withUnsafeMutablePointer(to: &handle) {handle in
-            let result = libusb_open(device, handle)
-            guard result == 0 else {
-                fatalError("error binding device to a handle")
-            }
+        let result = libusb_open(device, &handle)
+        guard result == 0 else {
+            fatalError("error binding device to a handle")
         }
-        #endif
 
         // switch to MPSSE
         // configure MPSSE
