@@ -36,7 +36,14 @@ public class FtdiSPI: LinkSPI {
         // find the device
 
         // use the device:
+        // Style question: what is the best ordering of declare/open/guard/defer?
         var handle: OpaquePointer? = nil
+        defer {
+            if let handle = handle {
+                libusb_close(handle)
+                // handle = nil // but going out of scope
+            }
+        }
         let result = libusb_open(device, &handle)
         guard result == 0 else {
             fatalError("error binding device to a handle")
