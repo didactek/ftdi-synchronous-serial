@@ -12,8 +12,9 @@ import CInterop
 
 func exerciseC() {
     // need a pointer to C-string
+    var ptr: UnsafePointer<CChar>? = nil
     // populate via call to CInterop
+    getPtrToString(&ptr)
     // validate contents
-
-//        getPtrToString(&ptr)
+    print(String(cString: ptr!))
 }
