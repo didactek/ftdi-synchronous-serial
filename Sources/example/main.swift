@@ -10,8 +10,9 @@
 import Foundation
 import LibUSB
 
+#if false
 exerciseC()
-exit(0)
+#endif
 
 FtdiSPI.initializeUSBLibrary()
 defer {

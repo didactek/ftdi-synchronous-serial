@@ -17,35 +17,24 @@ public class FtdiSPI: LinkSPI {
 
     public init(speedHz: Int) {
         // find FTDI device
-        let vendor = 0x00
-        let product = 0x00
-        let bus = 0x00
-        let address = 0x00
-        let serialNumber = 0x00
-        let index = 0x00
 
         // scan for devices:
-        let devices = UnsafeMutablePointer<UnsafeMutablePointer<OpaquePointer?>?>.allocate(capacity: 1)
-        defer {
-            devices.deallocate()
-        }
-        let deviceCount = libusb_get_device_list(Self.ctx, devices)
+
+        var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
+        let deviceCount = libusb_get_device_list(Self.ctx, &devices)
         guard deviceCount > 0 else {
             fatalError("no USB devices found")
         }
         print("found \(deviceCount) devices")
 
+        let device = devices![0]
 
-
-        //devdesc = UsbDeviceDescriptor(vendor, product, bus, address, serial, index, None)
-        let device = OpaquePointer(devices[0])
-
-        #if true // FIXME: vendor/product is not stable from this code; probably getting pass-by-reference wrong in bridging?
         var descriptor = libusb_device_descriptor()
         let _ = libusb_get_device_descriptor(device, &descriptor)
-        print("vendor:", descriptor.idVendor)
-        print("product:", descriptor.idProduct)
-        #endif
+        print("vendor:", String(descriptor.idVendor, radix: 16))
+        print("product:", String(descriptor.idProduct, radix: 16))
+
+
         // find the device
 
         // use the device:
