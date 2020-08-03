@@ -27,6 +27,8 @@ public class FtdiSPI: LinkSPI {
         }
         print("found \(deviceCount) devices")
 
+        // find the device
+        // FIXME: be more precise than this!
         let device = devices![0]
 
         var descriptor = libusb_device_descriptor()
@@ -35,9 +37,7 @@ public class FtdiSPI: LinkSPI {
         print("product:", String(descriptor.idProduct, radix: 16))
 
 
-        // find the device
-
-        // use the device:
+        // AN_135_MPSSE_Basics lifetime: Confirm device existence and open file handle
         // Style question: what is the best ordering of declare/open/guard/defer?
         var handle: OpaquePointer? = nil
         defer {
@@ -51,13 +51,40 @@ public class FtdiSPI: LinkSPI {
             fatalError("error binding device to a handle")
         }
 
-        // switch to MPSSE
-        // configure MPSSE
-        // keep somehow
+        configurePorts()
+        configureMPSSEForSPI()
+        // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
+        endMPSSE()
+    }
+
+    /// AN_135_MPSSE_Basics lifetime: 4.2 Configure FTDI Port For MPSSE Use
+    func configurePorts() {
+        // Reset peripheral side
+        // Configure USB transfer sizes
+        // Set event/error characters
+        // Set timeouts
+        // Set latency timer
+        // Set flow control
+        // Reset MPSSE controller
+        // Enable MPSSE controller
+    }
+
+
+    /// AN_135_MPSSE_Basics lifetime: 4.3 Configure MPSSE
+    func configureMPSSEForSPI() {
+        // Clock speed
+        // pin directions
+        // initial pin states
+    }
+
+    /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
+    func endMPSSE() {
+        // Reset MPSSE
+        // Close handles/resources
     }
 
     public func write(data: Data, count: Int) {
-        // use USB device
+        // Message prologue includes number of bytes in the message
     }
 
     public static func initializeUSBLibrary() {
