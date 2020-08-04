@@ -46,7 +46,7 @@ public class FtdiSPI: LinkSPI {
         // Style question: what is the best ordering of declare/open/guard/defer?
         let result = libusb_open(device, &handle)
         guard result == 0 else {
-            throw SPIError.bindingDeviceHandlef
+            throw SPIError.bindingDeviceHandle
         }
 
         configurePorts()
@@ -74,6 +74,7 @@ public class FtdiSPI: LinkSPI {
         // Set event/error characters
         // Set timeouts
         // Set latency timer
+        setLatency(5000)
         // Set flow control
         // Reset MPSSE controller
         //  bitmode: RESET
