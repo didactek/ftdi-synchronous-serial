@@ -66,6 +66,7 @@ public class FtdiSPI: LinkSPI {
         // Reset peripheral side
         //  rx buf purged
         //  bitmode: RESET
+        setBitmode(.reset)
         // Configure USB transfer sizes
         //  TX chunksize: 1024
         //  RX chunksize: 512
@@ -76,9 +77,11 @@ public class FtdiSPI: LinkSPI {
         // Set flow control
         // Reset MPSSE controller
         //  bitmode: RESET
+        setBitmode(.reset)
         //  rx buf purged
         // Enable MPSSE controller
         //  bitmode: MPSSE
+        setBitmode(.mpsse)
     }
     
 
@@ -112,6 +115,17 @@ public class FtdiSPI: LinkSPI {
         case readPins = 0xc  // Read GPIO pin value (or "get bitmode")
     }
     
+    enum BitMode: UInt16 {
+        case reset = 0x00  // switch off altnerative mode (default to UART)
+        case bitbang = 0x01  // classical asynchronous bitbang mode
+        case mpsse = 0x02  // MPSSE mode, available on 2232x chips
+        case syncbb = 0x04  // synchronous bitbang mode
+        case mcu = 0x08  // MCU Host Bus Emulation mode,
+        case opto = 0x10  // Fast Opto-Isolated Serial Interface Mode
+        case cbus = 0x20  // Bitbang on CBUS pins of R-type chips
+        case syncff = 0x40  // Single Channel Synchronous FIFO mode
+    }
+    
     
     enum ControlRequestType: UInt8 {
         case standard = 0b00_00000
@@ -133,19 +147,24 @@ public class FtdiSPI: LinkSPI {
         return type.rawValue | direction.rawValue | recipient.rawValue
     }
 
-    func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data) {
+    func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data? = nil) {
         let requestType = controlRequest(type: .vendor, direction: .out, recipient: .device)
         
-        var dataCopy = Array(data)
+        var dataCopy = Array(data ?? Data())
 
         // FIXME: I'm pretty sure this bridging is wrong:
-        controlTransfer(requestType: requestType, bRequest: bRequest,
-                        wValue: value, wIndex: wIndex,
-                        data: &dataCopy,
-                        wLength: UInt16(data.count), timeout: usbWriteTimeout)
+        let result = controlTransfer(requestType: requestType,
+                                     bRequest: bRequest,
+                                     wValue: value, wIndex: wIndex,
+                                     data: &dataCopy,
+                                     wLength: UInt16(dataCopy.count), timeout: usbWriteTimeout)
+        guard result == 0 else {
+            // FIXME: should probably throw rather than abort, and maybe not all calls need to be this strict
+            fatalError("controlTransferOut failed")
+        }
     }
     
-    func controlTransfer(requestType: UInt8, bRequest: BRequestType, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) {
+    func controlTransfer(requestType: UInt8, bRequest: BRequestType, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
         libusb_control_transfer(handle, requestType, bRequest.rawValue, wValue, wIndex, data, wLength, timeout)
     }
     
@@ -159,6 +178,15 @@ public class FtdiSPI: LinkSPI {
 
     func setLatency(_ unspecifiedUnit: UInt16) {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
+    }
+    
+    func setBitmode(_ mode: BitMode, directionMask: UInt16 = 0) {
+        guard directionMask <= 0xff else {
+            fatalError("directionMask bits out of range: 0x\(String(directionMask, radix: 16))")
+        }
+        let value = mode.rawValue << 8 | directionMask
+        controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
+        
     }
     // END Implementation of pyftdi dependent functions
     #endif
