@@ -68,39 +68,38 @@ public class FtdiSPI: LinkSPI {
         //  bitmode: RESET
         setBitmode(.reset)
         // Configure USB transfer sizes
-        //  TX chunksize: 1024
-        //  RX chunksize: 512
         // Set event/error characters
         // Set timeouts
         // Set latency timer
         setLatency(5000)
         // Set flow control
-        // Reset MPSSE controller
+        // Reset MPSSE controller  //FIXME: different from "reset peripheral side", and if so: should these be different calls?
         //  bitmode: RESET
         setBitmode(.reset)
         //  rx buf purged
         // Enable MPSSE controller
         //  bitmode: MPSSE
-        setBitmode(.mpsse)
+        setBitmode(.mpsse, outputPinMask: SpiHardwarePin.clock.rawValue | SpiHardwarePin.dataOut.rawValue)
     }
     
 
     /// AN_135_MPSSE_Basics lifetime: 4.3 Configure MPSSE
     func configureMPSSEForSPI() {
         // Clock speed
-        // pin directions
+        setClock(frequencyHz: 1_000_000)
+        // pin directions--documentation says to set that now, but it's initially configured when setting the MPSSE bit mode
         // initial pin states
     }
 
     /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
     func endMPSSE() {
         // Reset MPSSE
+        setBitmode(.reset)
         // Close handles/resources
     }
     
     
-    // FIXME: credit pyftdi
-    enum BRequestType: UInt8 {
+    enum BRequestType: UInt8 {  // FIXME: credit pyftdi
         case reset = 0x0  // Reset the port
         case setModemControl = 0x1  // Set the modem control register
         case setFlowControl = 0x2  // Set flow control register
@@ -115,7 +114,7 @@ public class FtdiSPI: LinkSPI {
         case readPins = 0xc  // Read GPIO pin value (or "get bitmode")
     }
     
-    enum BitMode: UInt16 {
+    enum BitMode: UInt16 {  // FIXME: credit pyftdi
         case reset = 0x00  // switch off altnerative mode (default to UART)
         case bitbang = 0x01  // classical asynchronous bitbang mode
         case mpsse = 0x02  // MPSSE mode, available on 2232x chips
@@ -126,18 +125,25 @@ public class FtdiSPI: LinkSPI {
         case syncff = 0x40  // Single Channel Synchronous FIFO mode
     }
     
+    // FIXME: pins are almost certainly an option list
+    enum SpiHardwarePin: UInt16 {
+        case clock = 0x01
+        case dataOut = 0x02
+        case dataIn = 0x04
+    }
     
-    enum ControlRequestType: UInt8 {
+    
+    enum ControlRequestType: UInt8 {  // FIXME: credit pyftdi
         case standard = 0b00_00000
         case `class`  = 0b01_00000
         case vendor   = 0b10_00000
         case reserved = 0b11_00000
     }
-    enum ControlDirection: UInt8 {
+    enum ControlDirection: UInt8 {  // FIXME: credit pyftdi
         case out = 0x00
         case `in` = 0x80
     }
-    enum ControlRequestRecipient: UInt8 {
+    enum ControlRequestRecipient: UInt8 {  // FIXME: credit pyftdi
         case device = 0
         case interface = 1
         case endpoint = 2
@@ -168,6 +174,12 @@ public class FtdiSPI: LinkSPI {
         libusb_control_transfer(handle, requestType, bRequest.rawValue, wValue, wIndex, data, wLength, timeout)
     }
     
+    func checkMPSSEResult() {
+        // FIXME: implement
+        // read
+        // make assertion on results
+    }
+    
     #if true  // block crediting pyftdi
     // Implementation of these is heavily dependent on pyftdi.
     // FIXME: GIVE CREDIT:
@@ -180,13 +192,19 @@ public class FtdiSPI: LinkSPI {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
     }
     
-    func setBitmode(_ mode: BitMode, directionMask: UInt16 = 0) {
-        guard directionMask <= 0xff else {
-            fatalError("directionMask bits out of range: 0x\(String(directionMask, radix: 16))")
+    func setBitmode(_ mode: BitMode, outputPinMask: UInt16 = 0) {
+        guard outputPinMask <= 0xff else {
+            fatalError("directionMask bits out of range: 0x\(String(outputPinMask, radix: 16))")
         }
-        let value = mode.rawValue << 8 | directionMask
+        let value = mode.rawValue << 8 | outputPinMask
         controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
-        
+    }
+    
+    func setClock(frequencyHz: Int) {
+        // FIXME: only low speed implemented currently
+        // calculate divisors
+        // write
+        checkMPSSEResult()
     }
     // END Implementation of pyftdi dependent functions
     #endif
