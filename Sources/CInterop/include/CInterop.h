@@ -6,3 +6,5 @@
 //
 
 void getPtrToString(char const **);
+
+void consumeBytes(unsigned char *data);  // deliberately not const
