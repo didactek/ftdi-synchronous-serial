@@ -13,6 +13,7 @@ public class FtdiSPI: LinkSPI {
     enum SPIError: Error {
         case bindingDeviceHandle
         case getConfiguration
+        case claimInterface
     }
     
     var handle: OpaquePointer? = nil
@@ -54,7 +55,12 @@ public class FtdiSPI: LinkSPI {
         }
         // FIXME: check ranges at each array; scan for the write endpoint
         // FIXME: endpoint still returns "endpoint not found on any open interface"
-        writeEndpoint = configuration!.pointee.interface.pointee.altsetting.pointee.endpoint[0].bEndpointAddress
+        //   claim_interface()
+        let interfaceNumber: Int32 = 0
+        guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
+            throw SPIError.claimInterface
+        }
+        writeEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[0].bEndpointAddress
         
         configurePorts()
         configureMPSSEForSPI()
