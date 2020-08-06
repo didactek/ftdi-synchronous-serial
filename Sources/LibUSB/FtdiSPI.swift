@@ -22,6 +22,7 @@ public class FtdiSPI: LinkSPI {
     var wIndex: UInt16 = 1  // FIXME
     var usbWriteTimeout: UInt32 = 5000  // FIXME
     let writeEndpoint: UInt8
+    let readEndpoint: UInt8
 
     public init(speedHz: Int) throws {
 
@@ -56,13 +57,12 @@ public class FtdiSPI: LinkSPI {
             throw SPIError.getConfiguration
         }
         // FIXME: check ranges at each array; scan for the write endpoint
-        // FIXME: endpoint still returns "endpoint not found on any open interface"
-        //   claim_interface()
         let interfaceNumber: Int32 = 0
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
             throw SPIError.claimInterface
         }
         writeEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[0].bEndpointAddress
+        readEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[1].bEndpointAddress
 
         configurePorts()
         configureMPSSEForSPI()
@@ -194,9 +194,13 @@ public class FtdiSPI: LinkSPI {
     }
 
     func checkMPSSEResult() {
-        // FIXME: implement
-        // read
-        // make assertion on results
+        let resultMessage = read(count: 2)
+        print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
+        // FIXME: confirm '== 0' is the correct guard.
+        // 0xfa is "invalid command", but other errors seem possible...
+        guard resultMessage[0] == 0 else {
+            fatalError("MPSSE operation returned error code")
+        }
     }
 
     #if true  // block crediting pyftdi
@@ -241,9 +245,8 @@ public class FtdiSPI: LinkSPI {
 
     func bulkTransfer(msg: Data) {
         // dunno how to set these up:
-        // ftdi.py talks also about "interface"
-        var bytesTransferred: Int32 = 0
-        let timeout: UInt32 = 5000
+        var bytesTransferred = Int32(0)
+        let timeout = UInt32(5000)
 
         let outgoingCount = Int32(msg.count)
         var data = msg // copy for safety
@@ -253,6 +256,23 @@ public class FtdiSPI: LinkSPI {
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
         }
+    }
+
+    public func read(count: Int) -> Data {
+        let bufSize = 1024 // FIXME: tell the device about this!
+        guard count <= bufSize else {
+            fatalError("attempt to read more than buffer size")
+        }
+        let timeout = UInt32(5000)
+        var readBuffer = Data(repeating: 0, count: bufSize)
+        var readCount = Int32(0)
+        let result = readBuffer.withUnsafeMutableBytes { unsafe in
+            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(count), &readCount, timeout)
+        }
+        guard result == 0 else {
+            fatalError("bulkTransfer returned \(result)")
+        }
+        return readBuffer.prefix(Int(readCount))
     }
 
     public static func initializeUSBLibrary() {
