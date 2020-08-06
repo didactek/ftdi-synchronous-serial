@@ -14,11 +14,13 @@ public class FtdiSPI: LinkSPI {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
     enum SPIError: Error {
         case bindingDeviceHandle
+        case getConfiguration
     }
 
     var handle: OpaquePointer? = nil
     var wIndex: UInt16 = 1  // FIXME
     var usbWriteTimeout: UInt32 = 5000  // FIXME
+    let writeEndpoint: UInt8
 
     public init(speedHz: Int) throws {
 
@@ -43,11 +45,18 @@ public class FtdiSPI: LinkSPI {
 
 
         // AN_135_MPSSE_Basics lifetime: Confirm device existence and open file handle
-        // Style question: what is the best ordering of declare/open/guard/defer?
         let result = libusb_open(device, &handle)
         guard result == 0 else {
             throw SPIError.bindingDeviceHandle
         }
+
+        var configuration: UnsafeMutablePointer<libusb_config_descriptor>? = nil
+        guard libusb_get_active_config_descriptor(device, &configuration) == 0 else {
+            throw SPIError.getConfiguration
+        }
+        // FIXME: check ranges at each array; scan for the write endpoint
+        // FIXME: endpoint still returns "endpoint not found on any open interface"
+        writeEndpoint = configuration!.pointee.interface.pointee.altsetting.pointee.endpoint[0].bEndpointAddress
 
         configurePorts()
         configureMPSSEForSPI()
@@ -116,7 +125,9 @@ public class FtdiSPI: LinkSPI {
         case readPins = 0xc  // Read GPIO pin value (or "get bitmode")
     }
 
-    enum BitMode: UInt16 {  // FIXME: credit pyftdi
+    /// D2XX FT_SetBItmode values
+    enum BitMode: UInt16 {
+        // FIXME: harmonize comments with documentation
         case reset = 0x00  // switch off altnerative mode (default to UART)
         case bitbang = 0x01  // classical asynchronous bitbang mode
         case mpsse = 0x02  // MPSSE mode, available on 2232x chips
@@ -224,14 +235,14 @@ public class FtdiSPI: LinkSPI {
 
     func bulkTransfer(msg: Data) {
         // dunno how to set these up:
-        let endpoint: UInt8 = 0  // FIXME: bulk transfer complains about the endpoint
+        // ftdi.py talks also about "interface"
         var bytesTransferred: Int32 = 0
         let timeout: UInt32 = 5000
 
         let outgoingCount = Int32(msg.count)
         var data = msg // copy for safety
         let result = data.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, endpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, timeout)
+            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, timeout)
         }
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
