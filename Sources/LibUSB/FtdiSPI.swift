@@ -206,11 +206,34 @@ public class FtdiSPI: LinkSPI {
         // write
         checkMPSSEResult()
     }
-    // END Implementation of pyftdi dependent functions
+    // END Implementation of pyftdi documented constants/patterns
     #endif
 
     public func write(data: Data, count: Int) {
-        // Message prologue includes number of bytes in the message
+        guard count > 0 else {
+            fatalError("write must send minimum of one byte")
+        }
+        // FIXME: also add the MPSSE command statement?
+        let sizeSpec = UInt16(count - 1)
+        let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
+        
+        bulkTransfer(msg: sizePrologue + data)
+    }
+    
+    func bulkTransfer(msg: Data) {
+        // dunno how to set these up:
+        let endpoint: UInt8 = 0  // FIXME: bulk transfer complains about the endpoint
+        var bytesTransferred: Int32 = 0
+        let timeout: UInt32 = 5000
+        
+        let outgoingCount = Int32(msg.count)
+        var data = msg // copy for safety
+        let result = data.withUnsafeMutableBytes { unsafe in
+            libusb_bulk_transfer(handle, endpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, timeout)
+        }
+        guard result == 0 else {
+            fatalError("bulkTransfer returned \(result)")
+        }
     }
     
     public static func initializeUSBLibrary() {
