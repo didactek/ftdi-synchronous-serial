@@ -20,7 +20,10 @@ defer {
 }
 
 do { // hoping block scope triggers FtdiSPI.deinit
-    let bus = try! FtdiSPI(speedHz: 10_000_000)
-    let data = Data(repeating: 0x55, count: 10)  // 85 decimal
+    let bus = try! FtdiSPI(speedHz: 1_000_000)
+    let ledPrologue = Data(repeating: 0, count: 4)
+    let ledEpilogue = Data(repeating: 0xff, count: 4)
+    let ledBlue = Data([0xe8, 0xff, 0x00, 0x00])
+    let data = ledPrologue + ledBlue + ledEpilogue
     bus.write(data: data, count: data.count)
 }
