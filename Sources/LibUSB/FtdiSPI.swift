@@ -59,8 +59,8 @@ public class FtdiSPI: LinkSPI {
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
             throw SPIError.claimInterface
         }
-        writeEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[0].bEndpointAddress
-        readEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[1].bEndpointAddress
+        writeEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[1].bEndpointAddress
+        readEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[0].bEndpointAddress
         
         configurePorts()
         confirmMPSSEModeEnabled()
@@ -229,7 +229,7 @@ public class FtdiSPI: LinkSPI {
         let badOpcode = MpsseCommand.bogus.rawValue
         bulkTransfer(msg: Data([badOpcode]))
         let resultMessage = read(count: 2)
-        print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
+        print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count == 2 else {
             fatalError("results should have been available")
         }
@@ -314,7 +314,7 @@ public class FtdiSPI: LinkSPI {
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
             libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(count), &readCount, timeout)
         }
-        guard result == 0 else {
+        guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
             fatalError("bulkTransfer returned \(result)")
         }
         return readBuffer.prefix(Int(readCount))
