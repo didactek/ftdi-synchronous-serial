@@ -293,12 +293,11 @@ public class FtdiSPI: LinkSPI {
     func bulkTransfer(msg: Data) {
         // dunno how to set these up:
         var bytesTransferred = Int32(0)
-        let timeout = UInt32(5000)
 
         let outgoingCount = Int32(msg.count)
         var data = msg // copy for safety
         let result = data.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, timeout)
+            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
         }
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
@@ -310,11 +309,10 @@ public class FtdiSPI: LinkSPI {
         guard count <= bufSize else {
             fatalError("attempt to read more than buffer size")
         }
-        let timeout = UInt32(5000)
         var readBuffer = Data(repeating: 0, count: bufSize)
         var readCount = Int32(0)
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(count), &readCount, timeout)
+            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(count), &readCount, usbWriteTimeout)
         }
         guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
             fatalError("bulkTransfer returned \(result)")
