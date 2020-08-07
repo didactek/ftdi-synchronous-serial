@@ -149,6 +149,28 @@ public class FtdiSPI: LinkSPI {
         case dataIn = 0x04
     }
     
+    enum MpsseCommand: UInt8 {
+        case writeBytesNveMsb = 0x11
+        //...
+        case setBitsLow = 0x80  // Change LSB GPIO output
+        case setBitsHigh = 0x82  // Change MSB GPIO output
+        case getBitsLow = 0x81  // Get LSB GPIO output
+        case getBitsHigh = 0x83  // Get MSB GPIO output
+        case loopbackStart = 0x84  // Enable loopback
+        case loopbackEnd = 0x85  // Disable loopback
+        case setTickDivisor = 0x86  // Set clock
+        case enableClock3phase = 0x8c  // Enable 3-phase data clocking (I2C)
+        case disableClock3phase = 0x8d  // Disable 3-phase data clocking
+        case clockBitsNoData = 0x8e  // Allows JTAG clock to be output w/o data
+        case clockBytesNoData = 0x8f  // Allows JTAG clock to be output w/o data
+        case clockWaitOnHigh = 0x94  // Clock until GPIOL1 is high
+        case clockWaitOnLow = 0x95  // Clock until GPIOL1 is low
+        case enableClockAdaptive = 0x96  // Enable JTAG adaptive clock for ARM
+        case disableClockAdaptive = 0x97  // Disable JTAG adaptive clock
+        case clockCountWaitOnHigh = 0x9c  // Clock byte cycles until GPIOL1 is high
+        case clockCountWaitOnLow = 0x9d  // Clock byte cycles until GPIOL1 is low
+        case driveZero = 0x9e  // Drive-zero mode
+    }
     
     enum ControlRequestType: UInt8 {  // FIXME: credit pyftdi
         case standard = 0b00_00000
@@ -223,8 +245,15 @@ public class FtdiSPI: LinkSPI {
     
     func setClock(frequencyHz: Int) {
         // FIXME: only low speed implemented currently
-        // calculate divisors
-        // write
+        let busClock = 6_000_000
+        let divisor = (busClock + frequencyHz)/(2 * frequencyHz) - 1
+        let divisorSetting = UInt16(clamping: divisor)
+        
+        let action = Data([MpsseCommand.setTickDivisor.rawValue])
+        let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
+        let command = action + argument
+
+        bulkTransfer(msg: command)
         checkMPSSEResult()
     }
     // END Implementation of pyftdi documented constants/patterns
@@ -234,11 +263,11 @@ public class FtdiSPI: LinkSPI {
         guard count > 0 else {
             fatalError("write must send minimum of one byte")
         }
-        // FIXME: also add the MPSSE command statement?
+        let action = Data([MpsseCommand.writeBytesNveMsb.rawValue])
         let sizeSpec = UInt16(count - 1)
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
         
-        bulkTransfer(msg: sizePrologue + data)
+        bulkTransfer(msg: action + sizePrologue + data)
     }
     
     func bulkTransfer(msg: Data) {
