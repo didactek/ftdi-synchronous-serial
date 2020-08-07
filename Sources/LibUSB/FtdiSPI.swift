@@ -63,6 +63,7 @@ public class FtdiSPI: LinkSPI {
         readEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[1].bEndpointAddress
         
         configurePorts()
+        confirmMPSSEModeEnabled()
         configureMPSSEForSPI()
         // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
     }
@@ -170,6 +171,7 @@ public class FtdiSPI: LinkSPI {
         case clockCountWaitOnHigh = 0x9c  // Clock byte cycles until GPIOL1 is high
         case clockCountWaitOnLow = 0x9d  // Clock byte cycles until GPIOL1 is low
         case driveZero = 0x9e  // Drive-zero mode
+        case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
     }
     
     enum ControlRequestType: UInt8 {  // FIXME: credit pyftdi
@@ -220,6 +222,22 @@ public class FtdiSPI: LinkSPI {
         // 0xfa is "invalid command", but other errors seem possible...
         guard resultMessage[0] == 0 else {
             fatalError("MPSSE operation returned error code")
+        }
+    }
+
+    func confirmMPSSEModeEnabled() {
+        let badOpcode = MpsseCommand.bogus.rawValue
+        bulkTransfer(msg: Data([badOpcode]))
+        let resultMessage = read(count: 2)
+        print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
+        guard resultMessage.count == 2 else {
+            fatalError("results should have been available")
+        }
+        guard resultMessage[0] == 0xfa else {
+            fatalError("MPSSE mode should have returned \"bad opcode\" result (0xfa)")
+        }
+        guard resultMessage[1] == badOpcode else {
+            fatalError("MPSSE should have explained the bad opcode")
         }
     }
     
