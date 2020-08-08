@@ -67,13 +67,22 @@ public class FtdiSPI: LinkSPI {
         let endpointCount = interface.altsetting[0].bNumEndpoints
         print("Device has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
-        let bestEndpoint = 0  // not actually 0; which is reserved for control transfer
         // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
-        writeEndpoint = endpoints[bestEndpoint].bEndpointAddress | UInt8(LIBUSB_ENDPOINT_OUT.rawValue)
-        readEndpoint = endpoints[bestEndpoint].bEndpointAddress | UInt8(LIBUSB_ENDPOINT_IN.rawValue)
+        writeEndpoint = endpoints[1].bEndpointAddress
+        readEndpoint = endpoints[0].bEndpointAddress
+        
+        guard writeEndpoint & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue else {
+            fatalError("writeEndpoint is not an output endpoint")
+        }
+        guard readEndpoint & (1 << 7) == LIBUSB_ENDPOINT_IN.rawValue else {
+            fatalError("readEndpoint is not an input endpoint")
+        }
+
+        print("read endpoint:", readEndpoint)
+        print("write endpoint:", writeEndpoint)
         
         configurePorts()
-        confirmMPSSEModeEnabled()
+//        confirmMPSSEModeEnabled()
         configureMPSSEForSPI()
         // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
     }
@@ -94,6 +103,7 @@ public class FtdiSPI: LinkSPI {
         //  bitmode: RESET
         setBitmode(.reset)
         // Configure USB transfer sizes
+        setTransferSizes()
         // Set event/error characters
         // Set timeouts
         // Set latency timer
@@ -226,19 +236,19 @@ public class FtdiSPI: LinkSPI {
     }
     
     func checkMPSSEResult() {
-        let resultMessage = read(count: 2)
+        let resultMessage = read()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
         // FIXME: confirm '== 0' is the correct guard.
         // 0xfa is "invalid command", but other errors seem possible...
-        guard resultMessage[0] == 0 else {
-            fatalError("MPSSE operation returned error code")
-        }
+//        guard resultMessage[0] == 0 else {
+//            fatalError("MPSSE operation returned error code")
+//        }
     }
 
     func confirmMPSSEModeEnabled() {
         let badOpcode = MpsseCommand.bogus.rawValue
         bulkTransfer(msg: Data([badOpcode]))
-        let resultMessage = read(count: 2)
+        let resultMessage = read()
         print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count == 2 else {
             fatalError("results should have been available")
@@ -262,7 +272,13 @@ public class FtdiSPI: LinkSPI {
     func setLatency(_ unspecifiedUnit: UInt16) {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
     }
-    
+
+    func setTransferSizes() {
+        // ftdi.py seems to be all about managing these constants internally, not pushing them to the chip
+//    DEBUG:pyftdi.ftdi:TX chunksize: 1024
+//    DEBUG:pyftdi.ftdi:RX chunksize: 512
+    }
+
     func setBitmode(_ mode: BitMode, outputPinMask: UInt16 = 0) {
         guard outputPinMask <= 0xff else {
             fatalError("directionMask bits out of range: 0x\(String(outputPinMask, radix: 16))")
@@ -312,15 +328,12 @@ public class FtdiSPI: LinkSPI {
         }
     }
     
-    public func read(count: Int) -> Data {
+    public func read() -> Data {
         let bufSize = 1024 // FIXME: tell the device about this!
-        guard count <= bufSize else {
-            fatalError("attempt to read more than buffer size")
-        }
         var readBuffer = Data(repeating: 0, count: bufSize)
         var readCount = Int32(0)
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(count), &readCount, usbWriteTimeout)
+            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
         guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
             fatalError("bulkTransfer returned \(result)")
