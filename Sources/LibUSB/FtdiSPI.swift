@@ -77,7 +77,7 @@ public class FtdiSPI: LinkSPI {
         print("write endpoint:", writeEndpoint)
         
         configurePorts()
-//        confirmMPSSEModeEnabled()
+        confirmMPSSEModeEnabled()
         configureMPSSEForSPI()
         // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
     }
@@ -98,7 +98,6 @@ public class FtdiSPI: LinkSPI {
         //  bitmode: RESET
         setBitmode(.reset)
         // Configure USB transfer sizes
-        setTransferSizes()
         // Set event/error characters
         // Set timeouts
         // Set latency timer
@@ -214,7 +213,6 @@ public class FtdiSPI: LinkSPI {
         
         var dataCopy = Array(data ?? Data())
 
-        // FIXME: I'm pretty sure this bridging is wrong:
         let result = controlTransfer(requestType: requestType,
                                      bRequest: bRequest,
                                      wValue: value, wIndex: wIndex,
@@ -233,25 +231,39 @@ public class FtdiSPI: LinkSPI {
     func checkMPSSEResult() {
         let resultMessage = read()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
-        // FIXME: confirm '== 0' is the correct guard.
-        // 0xfa is "invalid command", but other errors seem possible...
-//        guard resultMessage[0] == 0 else {
-//            fatalError("MPSSE operation returned error code")
-//        }
+        guard resultMessage.count >= 2 else {
+            fatalError("no MPSSE response found")
+        }
+        guard resultMessage[0] == 0x32 else {
+            fatalError("MPSSE first byte of reply marker")
+        }
+        guard resultMessage[1] ==  0x60 else {
+            fatalError("MPSSE results should be two-byte block")
+        }
+        guard resultMessage.count == 2 else {
+            fatalError("MPSSE results included error report")
+        }
+
     }
 
     func confirmMPSSEModeEnabled() {
+        // FIXME: these flushes are necessary at this point; not sure where accumulated results come from
+        checkMPSSEResult()
+        checkMPSSEResult()
+        checkMPSSEResult()
+        
         let badOpcode = MpsseCommand.bogus.rawValue
         bulkTransfer(msg: Data([badOpcode]))
         let resultMessage = read()
         print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
-        guard resultMessage.count == 2 else {
+        guard resultMessage.count >= 4 else {
             fatalError("results should have been available")
         }
-        guard resultMessage[0] == 0xfa else {
+        // first two bytes are hex 32,60
+        guard resultMessage[2] == 0xfa else {
             fatalError("MPSSE mode should have returned \"bad opcode\" result (0xfa)")
         }
-        guard resultMessage[1] == badOpcode else {
+        guard resultMessage[3] == badOpcode else {
             fatalError("MPSSE should have explained the bad opcode")
         }
     }
@@ -266,12 +278,6 @@ public class FtdiSPI: LinkSPI {
 
     func setLatency(_ unspecifiedUnit: UInt16) {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
-    }
-
-    func setTransferSizes() {
-        // ftdi.py seems to be all about managing these constants internally, not pushing them to the chip
-//    DEBUG:pyftdi.ftdi:TX chunksize: 1024
-//    DEBUG:pyftdi.ftdi:RX chunksize: 512
     }
 
     func setBitmode(_ mode: BitMode, outputPinMask: UInt16 = 0) {
@@ -307,6 +313,7 @@ public class FtdiSPI: LinkSPI {
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
         
         bulkTransfer(msg: action + sizePrologue + data)
+        checkMPSSEResult()
     }
     
     func bulkTransfer(msg: Data) {
@@ -331,7 +338,7 @@ public class FtdiSPI: LinkSPI {
             libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
         guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
-            fatalError("bulkTransfer returned \(result)")
+            fatalError("bulkTransfer read returned \(result)")
         }
         return readBuffer.prefix(Int(readCount))
     }
