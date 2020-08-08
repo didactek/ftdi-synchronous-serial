@@ -68,16 +68,11 @@ public class FtdiSPI: LinkSPI {
         print("Device has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
         // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
-        writeEndpoint = endpoints[1].bEndpointAddress
-        readEndpoint = endpoints[0].bEndpointAddress
+        writeEndpoint = endpoints.first {$0.bEndpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue}!
+            .bEndpointAddress
+        readEndpoint = endpoints.first {$0.bEndpointAddress & (1 << 7) == LIBUSB_ENDPOINT_IN.rawValue}!
+            .bEndpointAddress
         
-        guard writeEndpoint & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue else {
-            fatalError("writeEndpoint is not an output endpoint")
-        }
-        guard readEndpoint & (1 << 7) == LIBUSB_ENDPOINT_IN.rawValue else {
-            fatalError("readEndpoint is not an input endpoint")
-        }
-
         print("read endpoint:", readEndpoint)
         print("write endpoint:", writeEndpoint)
         
