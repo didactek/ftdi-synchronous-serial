@@ -121,6 +121,9 @@ public class FtdiSPI: LinkSPI {
         setClock(frequencyHz: 1_000_000)
         // pin directions--documentation says to set that now, but it's initially configured when setting the MPSSE bit mode
         // initial pin states
+        let cmd = Data([MpsseCommand.setBitsLow.rawValue, 0b0100, 0b0011]) // clk and out
+        bulkTransfer(msg: cmd)
+        checkMPSSEResult()
     }
 
     /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
