@@ -41,6 +41,7 @@ public class FtdiSPI: LinkSPI {
         let _ = libusb_get_device_descriptor(device, &descriptor)
         print("vendor:", String(descriptor.idVendor, radix: 16))
         print("product:", String(descriptor.idProduct, radix: 16))
+        print("device has", descriptor.bNumConfigurations, "configurations")
         #endif
 
 
@@ -54,13 +55,22 @@ public class FtdiSPI: LinkSPI {
         guard libusb_get_active_config_descriptor(device, &configuration) == 0 else {
             throw SPIError.getConfiguration
         }
+        let configurationIndex = 0
+        let interfacesCount = configuration![configurationIndex].bNumInterfaces
+        print("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
         // FIXME: check ranges at each array; scan for the write endpoint
         let interfaceNumber: Int32 = 0
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
             throw SPIError.claimInterface
         }
-        writeEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[1].bEndpointAddress
-        readEndpoint = configuration!.pointee.interface[Int(interfaceNumber)].altsetting.pointee.endpoint[0].bEndpointAddress
+        let interface = configuration![configurationIndex].interface[Int(interfaceNumber)]
+        let endpointCount = interface.altsetting[0].bNumEndpoints
+        print("Device has \(endpointCount) endpoints")
+        let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
+        let bestEndpoint = 0  // not actually 0; which is reserved for control transfer
+        // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
+        writeEndpoint = endpoints[bestEndpoint].bEndpointAddress | UInt8(LIBUSB_ENDPOINT_OUT.rawValue)
+        readEndpoint = endpoints[bestEndpoint].bEndpointAddress | UInt8(LIBUSB_ENDPOINT_IN.rawValue)
         
         configurePorts()
         confirmMPSSEModeEnabled()
