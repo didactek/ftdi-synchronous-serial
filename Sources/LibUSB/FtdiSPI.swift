@@ -46,7 +46,6 @@ public class USBDevice {
         #endif
 
 
-        // AN_135_MPSSE_Basics lifetime: Confirm device existence and open file handle
         let result = libusb_open(device, &handle)
         guard result == 0 else {
             throw USBError.bindingDeviceHandle
@@ -80,24 +79,24 @@ public class USBDevice {
 
     // USB spec 2.0, sec 9.3: USB Device Requests
     // USB spec 2.0, sec 9.3.1: bmRequestType
-    typealias bmRequestType = UInt8
-    enum ControlDirection: bmRequestType {
+    typealias BMRequestType = UInt8
+    enum ControlDirection: BMRequestType {
         case hostToDevice = 0b0000_0000
         case deviceToHost = 0b1000_0000
     }
-    enum ControlRequestType: bmRequestType {
+    enum ControlRequestType: BMRequestType {
         case standard = 0b00_00000
         case `class`  = 0b01_00000
         case vendor   = 0b10_00000
         case reserved = 0b11_00000
     }
-    enum ControlRequestRecipient: bmRequestType {
+    enum ControlRequestRecipient: BMRequestType {
         case device = 0
         case interface = 1
         case endpoint = 2
         case other = 3
     }
-    func controlRequest(type: ControlRequestType, direction: ControlDirection, recipient: ControlRequestRecipient) -> bmRequestType {
+    func controlRequest(type: ControlRequestType, direction: ControlDirection, recipient: ControlRequestRecipient) -> BMRequestType {
         return type.rawValue | direction.rawValue | recipient.rawValue
     }
 
@@ -118,7 +117,7 @@ public class USBDevice {
         }
     }
 
-    func controlTransfer(requestType: UInt8, bRequest: UInt8, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
+    func controlTransfer(requestType: BMRequestType, bRequest: UInt8, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
         libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
     }
 
@@ -146,8 +145,9 @@ public class USBDevice {
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
             libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
-        guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
-            fatalError("bulkTransfer read returned \(result)")
+        guard result == 0 else {
+            let errorMessage = libusb_error_name(result)
+            fatalError("bulkTransfer read returned \(result): \(errorMessage)")
         }
         return readBuffer.prefix(Int(readCount))
     }
@@ -170,6 +170,7 @@ public class FtdiSPI: LinkSPI {
     let device: USBDevice
 
     public init(speedHz: Int) throws {
+        // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
         device = try USBDevice()
 
         configurePorts()
