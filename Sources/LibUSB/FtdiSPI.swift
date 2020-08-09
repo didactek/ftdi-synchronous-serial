@@ -35,7 +35,7 @@ public class FtdiSPI: LinkSPI {
         // Set event/error characters
         // Set timeouts
         // Set latency timer
-        setLatency(5000)
+        setLatency(mSec: 16)
         // Set flow control
         // Reset MPSSE controller  //FIXME: different from "reset peripheral side", and if so: should these be different calls?
         //  bitmode: RESET
@@ -111,28 +111,40 @@ public class FtdiSPI: LinkSPI {
     enum MpsseCommand: UInt8 {
         // 3.2 Data Shifting (sending serial data synchronized with clock)
         case writeBytesNveMsb = 0x11
-        //...
+        // FIXME: add others as necessary/convenient
 
         // 3.6 Set / Read Data Bits High / Low Bytes
         case setBitsLow = 0x80  // Change LSB GPIO output
         case setBitsHigh = 0x82  // Change MSB GPIO output
         case getBitsLow = 0x81  // Get LSB GPIO output
         case getBitsHigh = 0x83  // Get MSB GPIO output
+        
+        // 3.7 Loopback
         case loopbackStart = 0x84  // Enable loopback
         case loopbackEnd = 0x85  // Disable loopback
-        case setTickDivisor = 0x86  // Set clock
-        case enableClock3phase = 0x8c  // Enable 3-phase data clocking (I2C)
-        case disableClock3phase = 0x8d  // Disable 3-phase data clocking
-        case clockBitsNoData = 0x8e  // Allows JTAG clock to be output w/o data
-        case clockBytesNoData = 0x8f  // Allows JTAG clock to be output w/o data
-        case clockWaitOnHigh = 0x94  // Clock until GPIOL1 is high
-        case clockWaitOnLow = 0x95  // Clock until GPIOL1 is low
-        case enableClockAdaptive = 0x96  // Enable JTAG adaptive clock for ARM
-        case disableClockAdaptive = 0x97  // Disable JTAG adaptive clock
-        case clockCountWaitOnHigh = 0x9c  // Clock byte cycles until GPIOL1 is high
-        case clockCountWaitOnLow = 0x9d  // Clock byte cycles until GPIOL1 is low
-        case driveZero = 0x9e  // Drive-zero mode
+        
+        // 3.8 Clock
+        case setTCKDivisor = 0x86  // Set TCK/SK divisor
+        // 6 FT232H, FT2232H & FT4232H only
+        case disableClockDivide5 = 0x8a  // Enable 60 MHz clock changes (30MHz cycle)
+        case enableClockDivide5 = 0x8b  // Enable 12 MHz clock changes (6MHz cycle)
+        case enableClock3Phase = 0x8c  // Enable 3-phase data clocking (I2C)
+        case disableClock3Phase = 0x8d  // Disable 3-phase data clocking
+        case clockBitsNoData = 0x8e  // Clock for n+1 cycles with no data transfer (JTAG)
+        case clockBytesNoData = 0x8f  // Clock for 8*(n+1) cycles with no data transfer
+        case clockWaitOnHigh = 0x94  // Clock until GPIOL1 goes low **
+        case clockWaitOnLow = 0x95  // Clock until GPIOL1 goes high **
+        case enableAdaptiveClocking = 0x96  // Gate clock on RTCK read from GPIOL3 (ARM/JTAG)
+        case disableAdaptiveClocking = 0x97  // Disable adaptive clocking
+        case clockWaitOnHighTimeout = 0x9c  // Clock until GPIOL1 is high or 8*(n+1) cycles
+        case clockWaitOnLowTimeout = 0x9d  // Clock until GPIOL1 is low or 8*(n+1) cycles
+        
+        // 7.1 Drive on '0'; Tristate on '1'
+        case driveZero = 0x9e  // Set output pins to float on '1' (I2C)
+        
         case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
+
+        // ** documentation is unclear or inconsistent in its description
     }
     
 
@@ -225,8 +237,8 @@ public class FtdiSPI: LinkSPI {
         device.controlTransferOut(bRequest: bRequest.rawValue, value: value, data: data)
     }
 
-    func setLatency(_ unspecifiedUnit: UInt16) {
-        controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
+    func setLatency(mSec: UInt16) {
+        controlTransferOut(bRequest: .setLatencyTimer, value: mSec, data: Data())
     }
 
     func setBitmode(_ mode: BitMode, outputPinMask: UInt8 = 0) {
@@ -242,7 +254,7 @@ public class FtdiSPI: LinkSPI {
         
         let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
 
-        callMPSSE(command: .setTickDivisor, arguments: argument)
+        callMPSSE(command: .setTCKDivisor, arguments: argument)
     }
     // END Implementation of pyftdi documented constants/patterns
     #endif
