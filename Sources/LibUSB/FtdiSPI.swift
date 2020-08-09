@@ -69,21 +69,6 @@ public class FtdiSPI: LinkSPI {
     }
 
 
-    enum BRequestType: UInt8 {  // FIXME: credit pyftdi
-        case reset = 0x0  // Reset the port
-        case setModemControl = 0x1  // Set the modem control register
-        case setFlowControl = 0x2  // Set flow control register
-        case setBaudrate = 0x3  // Set baud rate
-        case setData = 0x4  // Set the data characteristics of the port
-        case pollModemLineStatus = 0x5  // Get line status
-        case setEventChar = 0x6  // Change event character
-        case setErrorChar = 0x7  // Change error character
-        case setLatencyTimer = 0x9  // Change latency timer
-        case getLatencyTimer = 0xa  // Get latency timer
-        case setBitmode = 0xb  // Change bit mode
-        case getBitmode = 0xc  // Read GPIO pin configuration
-    }
-
     /// D2XX FT_SetBItmode values
     enum BitMode: UInt16 {
         // FIXME: harmonize comments with documentation
@@ -172,7 +157,6 @@ public class FtdiSPI: LinkSPI {
         guard resultMessage.count == 2 else {
             fatalError("MPSSE results included error report")
         }
-
     }
 
     func confirmMPSSEModeEnabled() {
@@ -195,6 +179,27 @@ public class FtdiSPI: LinkSPI {
         guard resultMessage[3] == badOpcode else {
             fatalError("MPSSE should have explained the bad opcode")
         }
+    }
+
+    func setClock(frequencyHz: Int) {
+        // FIXME: only low speed implemented currently
+        let busClock = 6_000_000
+        let divisor = (busClock + frequencyHz)/(2 * frequencyHz) - 1
+        let divisorSetting = UInt16(clamping: divisor)
+
+        let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
+
+        callMPSSE(command: .setTCKDivisor, arguments: argument)
+    }
+
+    public func write(data: Data, count: Int) {
+        guard count > 0 else {
+            fatalError("write must send minimum of one byte")
+        }
+        let sizeSpec = UInt16(count - 1)
+        let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
+
+        callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
     }
 
     enum GpioBlock {
@@ -229,11 +234,27 @@ public class FtdiSPI: LinkSPI {
     }
 
     #if true  // block crediting pyftdi
-    // Implementation of these is heavily dependent on pyftdi.
+    // Implementation of these D2XX analogs was made possible by pyftdi.
     // FIXME: GIVE CREDIT:
     //    # Copyright (C) 2010-2020 Emmanuel Blot <emmanuel.blot@free.fr>
     //    # Copyright (c) 2016 Emmanuel Bouaziz <ebouaziz@free.fr>
     //    # All rights reserved.
+
+
+    enum BRequestType: UInt8 {  // FIXME: credit pyftdi
+        case reset = 0x0  // Reset the port
+        case setModemControl = 0x1  // Set the modem control register
+        case setFlowControl = 0x2  // Set flow control register
+        case setBaudrate = 0x3  // Set baud rate
+        case setData = 0x4  // Set the data characteristics of the port
+        case pollModemLineStatus = 0x5  // Get line status
+        case setEventChar = 0x6  // Change event character
+        case setErrorChar = 0x7  // Change error character
+        case setLatencyTimer = 0x9  // Change latency timer
+        case getLatencyTimer = 0xa  // Get latency timer
+        case setBitmode = 0xb  // Change bit mode
+        case getBitmode = 0xc  // Read GPIO pin configuration
+    }
 
     func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data?) {
         device.controlTransferOut(bRequest: bRequest.rawValue, value: value, data: data)
@@ -248,27 +269,8 @@ public class FtdiSPI: LinkSPI {
         controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
     }
 
-    func setClock(frequencyHz: Int) {
-        // FIXME: only low speed implemented currently
-        let busClock = 6_000_000
-        let divisor = (busClock + frequencyHz)/(2 * frequencyHz) - 1
-        let divisorSetting = UInt16(clamping: divisor)
 
-        let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
-
-        callMPSSE(command: .setTCKDivisor, arguments: argument)
-    }
     // END Implementation of pyftdi documented constants/patterns
     #endif
-
-    public func write(data: Data, count: Int) {
-        guard count > 0 else {
-            fatalError("write must send minimum of one byte")
-        }
-        let sizeSpec = UInt16(count - 1)
-        let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
-
-        callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
-    }
 }
 
