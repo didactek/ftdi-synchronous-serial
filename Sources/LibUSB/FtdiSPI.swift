@@ -58,9 +58,7 @@ public class FtdiSPI: LinkSPI {
     }
 
     func initializePinState() {
-        // FIXME: it's not clear what setBitsLow does: is initial states or a mask or what?
-        let pinSpec = Data([SpiHardwarePins.inputs.rawValue, SpiHardwarePins.outputs.rawValue])
-        callMPSSE(command: .setBitsLow, arguments: pinSpec)
+        setDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
     }
 
     /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
@@ -89,7 +87,7 @@ public class FtdiSPI: LinkSPI {
     /// D2XX FT_SetBItmode values
     enum BitMode: UInt16 {
         // FIXME: harmonize comments with documentation
-        case reset = 0x00  // switch off altnerative mode (default to UART)
+        case reset = 0x00  // switch off alternative mode (default to UART)
         case bitbang = 0x01  // classical asynchronous bitbang mode
         case mpsse = 0x02  // MPSSE mode, available on 2232x chips
         case syncbb = 0x04  // synchronous bitbang mode
@@ -110,9 +108,14 @@ public class FtdiSPI: LinkSPI {
         static let inputs: SpiHardwarePins = [.dataIn]
     }
 
+    // AN_108: Command Processor for MPSSE and MCU Host Bus Emulation Modes
+    // Ch 3: Command Definitions
     enum MpsseCommand: UInt8 {
+        // 3.2 Data Shifting (sending serial data synchronized with clock)
         case writeBytesNveMsb = 0x11
         //...
+
+        // 3.6 Set / Read Data Bits High / Low Bytes
         case setBitsLow = 0x80  // Change LSB GPIO output
         case setBitsHigh = 0x82  // Change MSB GPIO output
         case getBitsLow = 0x81  // Get LSB GPIO output
@@ -180,6 +183,37 @@ public class FtdiSPI: LinkSPI {
         guard resultMessage[3] == badOpcode else {
             fatalError("MPSSE should have explained the bad opcode")
         }
+    }
+
+    enum GpioBlock {
+        // lots of commands operate on either the high byte pins or the low byte
+        // pins.
+
+        // 3.6
+        case highBytes // ACBUS 7-0
+        case lowBytes  // ADBUS 7-0
+
+        // By encoding the parallelism of opCodes, we can reduce the number of
+        // explicit implementations of functions. Because the compiler will enforce
+        // case coverage, it reminds us to keep these opCode maps complete.
+        func opCodeSet() -> MpsseCommand {
+            switch self {
+            case .highBytes:
+                return .setBitsHigh
+            case .lowBytes:
+                return .setBitsLow
+            }
+        }
+    }
+
+    /// Define pins as input or output
+    ///
+    /// values sets level on output pins
+    /// 1 in outputMask marks pin as an output
+    func setDataBits(values: UInt8, outputMask: UInt8, pins: GpioBlock) {
+        let cmd = pins.opCodeSet()
+        let pinSpec = Data([values, outputMask])
+        callMPSSE(command: cmd, arguments: pinSpec)
     }
 
     #if true  // block crediting pyftdi
