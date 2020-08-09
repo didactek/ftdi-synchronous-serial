@@ -125,7 +125,7 @@ public class USBDevice {
         endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
     }
 
-    func bulkTransfer(msg: Data) {
+    func bulkTransferOut(msg: Data) {
         var bytesTransferred = Int32(0)
 
         let outgoingCount = Int32(msg.count)
@@ -138,7 +138,7 @@ public class USBDevice {
         }
     }
 
-    public func read() -> Data {
+    public func bulkTransferIn() -> Data {
         let bufSize = 1024 // FIXME: tell the device about this!
         var readBuffer = Data(repeating: 0, count: bufSize)
         var readCount = Int32(0)

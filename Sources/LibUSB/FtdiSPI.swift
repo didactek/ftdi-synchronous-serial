@@ -81,7 +81,7 @@ public class FtdiSPI: LinkSPI {
         case setLatencyTimer = 0x9  // Change latency timer
         case getLatencyTimer = 0xa  // Get latency timer
         case setBitmode = 0xb  // Change bit mode
-        case readPins = 0xc  // Read GPIO pin value (or "get bitmode")
+        case getBitmode = 0xc  // Read GPIO pin configuration
     }
 
     /// D2XX FT_SetBItmode values
@@ -153,12 +153,12 @@ public class FtdiSPI: LinkSPI {
 
     func callMPSSE(command: MpsseCommand, arguments: Data) {
         let cmd = Data([command.rawValue]) + arguments
-        device.bulkTransfer(msg: cmd)
+        device.bulkTransferOut(msg: cmd)
         checkMPSSEResult()
     }
 
     func checkMPSSEResult() {
-        let resultMessage = device.read()
+        let resultMessage = device.bulkTransferIn()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count >= 2 else {
             fatalError("no MPSSE response found")
@@ -182,8 +182,8 @@ public class FtdiSPI: LinkSPI {
         checkMPSSEResult()
 
         let badOpcode = MpsseCommand.bogus.rawValue
-        device.bulkTransfer(msg: Data([badOpcode]))
-        let resultMessage = device.read()
+        device.bulkTransferOut(msg: Data([badOpcode]))
+        let resultMessage = device.bulkTransferIn()
         print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count >= 4 else {
             fatalError("results should have been available")
