@@ -111,7 +111,7 @@ public class FtdiSPI: LinkSPI {
         //  rx buf purged
         // Enable MPSSE controller
         //  bitmode: MPSSE
-        setBitmode(.mpsse, outputPinMask: SpiHardwarePin.clock.rawValue | SpiHardwarePin.dataOut.rawValue)
+        setBitmode(.mpsse, outputPinMask: SpiHardwarePins.outputs.rawValue)
     }
 
 
@@ -119,9 +119,13 @@ public class FtdiSPI: LinkSPI {
     func configureMPSSEForSPI() {
         // Clock speed
         setClock(frequencyHz: 1_000_000)
-        // pin directions--documentation says to set that now, but it's initially configured when setting the MPSSE bit mode
-        // initial pin states
-        let cmd = Data([MpsseCommand.setBitsLow.rawValue, 0b0100, 0b0011]) // clk and out
+        // pin directions
+        initializePinState()
+    }
+
+    func initializePinState() {
+        // FIXME: it's not clear what setBitsLow does: is initial states or a mask or what?
+        let cmd = Data([MpsseCommand.setBitsLow.rawValue, UInt8(SpiHardwarePins.inputs.rawValue), UInt8(SpiHardwarePins.outputs.rawValue)])
         bulkTransfer(msg: cmd)
         checkMPSSEResult()
     }
@@ -162,11 +166,15 @@ public class FtdiSPI: LinkSPI {
         case syncff = 0x40  // Single Channel Synchronous FIFO mode
     }
 
-    // FIXME: pins are almost certainly an option list
-    enum SpiHardwarePin: UInt16 {
-        case clock = 0x01
-        case dataOut = 0x02
-        case dataIn = 0x04
+    struct SpiHardwarePins: OptionSet {
+        let rawValue: UInt16  // FIXME: would it be easier to deal in just the low bits?
+
+        static let clock   = SpiHardwarePins(rawValue: 1 << 0)
+        static let dataOut = SpiHardwarePins(rawValue: 1 << 1)
+        static let dataIn  = SpiHardwarePins(rawValue: 1 << 2)
+
+        static let outputs: SpiHardwarePins = [.clock, .dataOut]
+        static let inputs: SpiHardwarePins = [.dataIn]
     }
 
     enum MpsseCommand: UInt8 {
@@ -322,7 +330,6 @@ public class FtdiSPI: LinkSPI {
     }
 
     func bulkTransfer(msg: Data) {
-        // dunno how to set these up:
         var bytesTransferred = Int32(0)
 
         let outgoingCount = Int32(msg.count)
