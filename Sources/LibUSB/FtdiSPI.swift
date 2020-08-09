@@ -125,7 +125,7 @@ public class FtdiSPI: LinkSPI {
 
     func initializePinState() {
         // FIXME: it's not clear what setBitsLow does: is initial states or a mask or what?
-        let pinSpec = Data([UInt8(SpiHardwarePins.inputs.rawValue), UInt8(SpiHardwarePins.outputs.rawValue)])
+        let pinSpec = Data([SpiHardwarePins.inputs.rawValue, SpiHardwarePins.outputs.rawValue])
         callMPSSE(command: .setBitsLow, arguments: pinSpec)
     }
 
@@ -166,7 +166,7 @@ public class FtdiSPI: LinkSPI {
     }
 
     struct SpiHardwarePins: OptionSet {
-        let rawValue: UInt16  // FIXME: would it be easier to deal in just the low bits?
+        let rawValue: UInt8
 
         static let clock   = SpiHardwarePins(rawValue: 1 << 0)
         static let dataOut = SpiHardwarePins(rawValue: 1 << 1)
@@ -298,11 +298,8 @@ public class FtdiSPI: LinkSPI {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
     }
 
-    func setBitmode(_ mode: BitMode, outputPinMask: UInt16 = 0) {
-        guard outputPinMask <= 0xff else {
-            fatalError("directionMask bits out of range: 0x\(String(outputPinMask, radix: 16))")
-        }
-        let value = mode.rawValue << 8 | outputPinMask
+    func setBitmode(_ mode: BitMode, outputPinMask: UInt8 = 0) {
+        let value = mode.rawValue << 8 | UInt16(outputPinMask)
         controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
     }
 
