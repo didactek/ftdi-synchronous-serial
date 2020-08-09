@@ -125,9 +125,8 @@ public class FtdiSPI: LinkSPI {
 
     func initializePinState() {
         // FIXME: it's not clear what setBitsLow does: is initial states or a mask or what?
-        let cmd = Data([MpsseCommand.setBitsLow.rawValue, UInt8(SpiHardwarePins.inputs.rawValue), UInt8(SpiHardwarePins.outputs.rawValue)])
-        bulkTransfer(msg: cmd)
-        checkMPSSEResult()
+        let pinSpec = Data([UInt8(SpiHardwarePins.inputs.rawValue), UInt8(SpiHardwarePins.outputs.rawValue)])
+        callMPSSE(command: .setBitsLow, arguments: pinSpec)
     }
 
     /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
@@ -241,6 +240,12 @@ public class FtdiSPI: LinkSPI {
         libusb_control_transfer(handle, requestType, bRequest.rawValue, wValue, wIndex, data, wLength, timeout)
     }
 
+    func callMPSSE(command: MpsseCommand, arguments: Data) {
+        let cmd = Data([command.rawValue]) + arguments
+        bulkTransfer(msg: cmd)
+        checkMPSSEResult()
+    }
+
     func checkMPSSEResult() {
         let resultMessage = read()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
@@ -307,12 +312,9 @@ public class FtdiSPI: LinkSPI {
         let divisor = (busClock + frequencyHz)/(2 * frequencyHz) - 1
         let divisorSetting = UInt16(clamping: divisor)
 
-        let action = Data([MpsseCommand.setTickDivisor.rawValue])
         let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
-        let command = action + argument
 
-        bulkTransfer(msg: command)
-        checkMPSSEResult()
+        callMPSSE(command: .setTickDivisor, arguments: argument)
     }
     // END Implementation of pyftdi documented constants/patterns
     #endif
@@ -321,12 +323,10 @@ public class FtdiSPI: LinkSPI {
         guard count > 0 else {
             fatalError("write must send minimum of one byte")
         }
-        let action = Data([MpsseCommand.writeBytesNveMsb.rawValue])
         let sizeSpec = UInt16(count - 1)
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
 
-        bulkTransfer(msg: action + sizePrologue + data)
-        checkMPSSEResult()
+        callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
     }
 
     func bulkTransfer(msg: Data) {
