@@ -70,13 +70,10 @@ public class FtdiSPI: LinkSPI {
         print("Device has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
         // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
-        writeEndpoint = endpoints.first {$0.bEndpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue}!
+        writeEndpoint = endpoints.first {Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
             .bEndpointAddress
-        readEndpoint = endpoints.first {$0.bEndpointAddress & (1 << 7) == LIBUSB_ENDPOINT_IN.rawValue}!
+        readEndpoint = endpoints.first {!Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
             .bEndpointAddress
-
-        print("read endpoint:", readEndpoint)
-        print("write endpoint:", writeEndpoint)
 
         configurePorts()
         confirmMPSSEModeEnabled()
@@ -238,6 +235,10 @@ public class FtdiSPI: LinkSPI {
 
     func controlTransfer(requestType: UInt8, bRequest: BRequestType, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
         libusb_control_transfer(handle, requestType, bRequest.rawValue, wValue, wIndex, data, wLength, timeout)
+    }
+
+    static func isWriteable(endpointAddress: UInt8) -> Bool {
+        endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
     }
 
     func callMPSSE(command: MpsseCommand, arguments: Data) {
