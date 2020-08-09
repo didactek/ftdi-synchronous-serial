@@ -10,9 +10,9 @@
 import Foundation
 import CLibUSB
 
-public class FtdiSPI: LinkSPI {
+public class USBDevice {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
-    enum SPIError: Error {
+    enum USBError: Error {
         case bindingDeviceHandle
         case getConfiguration
         case claimInterface
@@ -24,8 +24,7 @@ public class FtdiSPI: LinkSPI {
     let writeEndpoint: UInt8
     let readEndpoint: UInt8
 
-    public init(speedHz: Int) throws {
-
+    public init() throws {
         // scan for devices:
         var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
         let deviceCount = libusb_get_device_list(Self.ctx, &devices)
@@ -50,12 +49,12 @@ public class FtdiSPI: LinkSPI {
         // AN_135_MPSSE_Basics lifetime: Confirm device existence and open file handle
         let result = libusb_open(device, &handle)
         guard result == 0 else {
-            throw SPIError.bindingDeviceHandle
+            throw USBError.bindingDeviceHandle
         }
 
         var configuration: UnsafeMutablePointer<libusb_config_descriptor>? = nil
         guard libusb_get_active_config_descriptor(device, &configuration) == 0 else {
-            throw SPIError.getConfiguration
+            throw USBError.getConfiguration
         }
         let configurationIndex = 0
         let interfacesCount = configuration![configurationIndex].bNumInterfaces
@@ -63,7 +62,7 @@ public class FtdiSPI: LinkSPI {
         // FIXME: check ranges at each array; scan for the write endpoint
         let interfaceNumber: Int32 = 0
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
-            throw SPIError.claimInterface
+            throw USBError.claimInterface
         }
         let interface = configuration![configurationIndex].interface[Int(interfaceNumber)]
         let endpointCount = interface.altsetting[0].bNumEndpoints
@@ -74,6 +73,100 @@ public class FtdiSPI: LinkSPI {
             .bEndpointAddress
         readEndpoint = endpoints.first {!Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
             .bEndpointAddress
+    }
+    deinit {
+        libusb_close(handle)
+    }
+
+    enum ControlRequestType: UInt8 {  // FIXME: credit pyftdi
+        case standard = 0b00_00000
+        case `class`  = 0b01_00000
+        case vendor   = 0b10_00000
+        case reserved = 0b11_00000
+    }
+    enum ControlDirection: UInt8 {  // FIXME: credit pyftdi
+        case out = 0x00
+        case `in` = 0x80
+    }
+    enum ControlRequestRecipient: UInt8 {  // FIXME: credit pyftdi
+        case device = 0
+        case interface = 1
+        case endpoint = 2
+        case other = 3
+    }
+    func controlRequest(type: ControlRequestType, direction: ControlDirection, recipient: ControlRequestRecipient) -> UInt8 {
+        return type.rawValue | direction.rawValue | recipient.rawValue
+    }
+
+    func controlTransferOut(bRequest: UInt8, value: UInt16, data: Data? = nil) {
+        let requestType = controlRequest(type: .vendor, direction: .out, recipient: .device)
+
+        var dataCopy = Array(data ?? Data())
+
+        let result = controlTransfer(requestType: requestType,
+                                     bRequest: bRequest,
+                                     wValue: value, wIndex: wIndex,
+                                     data: &dataCopy,
+                                     wLength: UInt16(dataCopy.count), timeout: usbWriteTimeout)
+        guard result == 0 else {
+            // FIXME: should probably throw rather than abort, and maybe not all calls need to be this strict
+            fatalError("controlTransferOut failed")
+        }
+    }
+
+    func controlTransfer(requestType: UInt8, bRequest: UInt8, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
+        libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
+    }
+
+    static func isWriteable(endpointAddress: UInt8) -> Bool {
+        endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
+    }
+
+    func bulkTransfer(msg: Data) {
+        var bytesTransferred = Int32(0)
+
+        let outgoingCount = Int32(msg.count)
+        var data = msg // copy for safety
+        let result = data.withUnsafeMutableBytes { unsafe in
+            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
+        }
+        guard result == 0 else {
+            fatalError("bulkTransfer returned \(result)")
+        }
+    }
+
+    public func read() -> Data {
+        let bufSize = 1024 // FIXME: tell the device about this!
+        var readBuffer = Data(repeating: 0, count: bufSize)
+        var readCount = Int32(0)
+        let result = readBuffer.withUnsafeMutableBytes { unsafe in
+            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
+        }
+        guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
+            fatalError("bulkTransfer read returned \(result)")
+        }
+        return readBuffer.prefix(Int(readCount))
+    }
+
+    public static func initializeUSBLibrary() {
+        let resultRaw = libusb_init(nil)
+        let result = libusb_error(rawValue: resultRaw)
+        guard result == LIBUSB_SUCCESS else {
+            let msg = String(cString: libusb_strerror(result))
+            fatalError("libusb_init failed: \(msg)")
+        }
+    }
+
+    public static func closeUSBLibrary() {
+        libusb_exit(ctx)
+    }
+}
+
+public class FtdiSPI: LinkSPI {
+    let device: USBDevice
+
+    public init(speedHz: Int) throws {
+        device = try USBDevice()
 
         configurePorts()
         confirmMPSSEModeEnabled()
@@ -82,12 +175,7 @@ public class FtdiSPI: LinkSPI {
     }
 
     deinit {
-        guard let handle = handle else {
-            fatalError("init should not have succeeded without creating handle")
-        }
-
         endMPSSE()
-        libusb_close(handle)
     }
 
     /// AN_135_MPSSE_Basics lifetime: 4.2 Configure FTDI Port For MPSSE Use
@@ -197,58 +285,16 @@ public class FtdiSPI: LinkSPI {
         case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
     }
 
-    enum ControlRequestType: UInt8 {  // FIXME: credit pyftdi
-        case standard = 0b00_00000
-        case `class`  = 0b01_00000
-        case vendor   = 0b10_00000
-        case reserved = 0b11_00000
-    }
-    enum ControlDirection: UInt8 {  // FIXME: credit pyftdi
-        case out = 0x00
-        case `in` = 0x80
-    }
-    enum ControlRequestRecipient: UInt8 {  // FIXME: credit pyftdi
-        case device = 0
-        case interface = 1
-        case endpoint = 2
-        case other = 3
-    }
-    func controlRequest(type: ControlRequestType, direction: ControlDirection, recipient: ControlRequestRecipient) -> UInt8 {
-        return type.rawValue | direction.rawValue | recipient.rawValue
-    }
 
-    func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data? = nil) {
-        let requestType = controlRequest(type: .vendor, direction: .out, recipient: .device)
-
-        var dataCopy = Array(data ?? Data())
-
-        let result = controlTransfer(requestType: requestType,
-                                     bRequest: bRequest,
-                                     wValue: value, wIndex: wIndex,
-                                     data: &dataCopy,
-                                     wLength: UInt16(dataCopy.count), timeout: usbWriteTimeout)
-        guard result == 0 else {
-            // FIXME: should probably throw rather than abort, and maybe not all calls need to be this strict
-            fatalError("controlTransferOut failed")
-        }
-    }
-
-    func controlTransfer(requestType: UInt8, bRequest: BRequestType, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
-        libusb_control_transfer(handle, requestType, bRequest.rawValue, wValue, wIndex, data, wLength, timeout)
-    }
-
-    static func isWriteable(endpointAddress: UInt8) -> Bool {
-        endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
-    }
 
     func callMPSSE(command: MpsseCommand, arguments: Data) {
         let cmd = Data([command.rawValue]) + arguments
-        bulkTransfer(msg: cmd)
+        device.bulkTransfer(msg: cmd)
         checkMPSSEResult()
     }
 
     func checkMPSSEResult() {
-        let resultMessage = read()
+        let resultMessage = device.read()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count >= 2 else {
             fatalError("no MPSSE response found")
@@ -272,8 +318,8 @@ public class FtdiSPI: LinkSPI {
         checkMPSSEResult()
 
         let badOpcode = MpsseCommand.bogus.rawValue
-        bulkTransfer(msg: Data([badOpcode]))
-        let resultMessage = read()
+        device.bulkTransfer(msg: Data([badOpcode]))
+        let resultMessage = device.read()
         print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count >= 4 else {
             fatalError("results should have been available")
@@ -294,6 +340,9 @@ public class FtdiSPI: LinkSPI {
     //    # Copyright (c) 2016 Emmanuel Bouaziz <ebouaziz@free.fr>
     //    # All rights reserved.
 
+    func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data?) {
+        device.controlTransferOut(bRequest: bRequest.rawValue, value: value, data: data)
+    }
 
     func setLatency(_ unspecifiedUnit: UInt16) {
         controlTransferOut(bRequest: .setLatencyTimer, value: unspecifiedUnit, data: Data())
@@ -325,45 +374,6 @@ public class FtdiSPI: LinkSPI {
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
 
         callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
-    }
-
-    func bulkTransfer(msg: Data) {
-        var bytesTransferred = Int32(0)
-
-        let outgoingCount = Int32(msg.count)
-        var data = msg // copy for safety
-        let result = data.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
-        }
-        guard result == 0 else {
-            fatalError("bulkTransfer returned \(result)")
-        }
-    }
-
-    public func read() -> Data {
-        let bufSize = 1024 // FIXME: tell the device about this!
-        var readBuffer = Data(repeating: 0, count: bufSize)
-        var readCount = Int32(0)
-        let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
-        }
-        guard result == 0 /*|| result == -8*/ else {  // FIXME: add -8; no data"?
-            fatalError("bulkTransfer read returned \(result)")
-        }
-        return readBuffer.prefix(Int(readCount))
-    }
-
-    public static func initializeUSBLibrary() {
-        let resultRaw = libusb_init(nil)
-        let result = libusb_error(rawValue: resultRaw)
-        guard result == LIBUSB_SUCCESS else {
-            let msg = String(cString: libusb_strerror(result))
-            fatalError("libusb_init failed: \(msg)")
-        }
-    }
-
-    public static func closeUSBLibrary() {
-        libusb_exit(ctx)
     }
 }
 
