@@ -80,7 +80,7 @@ public class FtdiSPI: LinkSPI {
 
         configurePorts()
         confirmMPSSEModeEnabled()
-        configureMPSSEForSPI()
+        configureMPSSEForSPI(frequencyHz: speedHz)
         // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
     }
 
@@ -116,9 +116,9 @@ public class FtdiSPI: LinkSPI {
 
 
     /// AN_135_MPSSE_Basics lifetime: 4.3 Configure MPSSE
-    func configureMPSSEForSPI() {
+    func configureMPSSEForSPI(frequencyHz: Int) {
         // Clock speed
-        setClock(frequencyHz: 1_000_000)
+        setClock(frequencyHz: frequencyHz)
         // pin directions
         initializePinState()
     }
