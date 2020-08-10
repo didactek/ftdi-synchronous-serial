@@ -8,7 +8,7 @@
 import Foundation
 
 
-public class FtdiSPI: Ftdi, LinkSPI {
+public class FtdiSPI: Ftdi {
     public init(speedHz: Int) throws {
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
         try super.init()

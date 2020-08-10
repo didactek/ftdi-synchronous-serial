@@ -15,3 +15,7 @@ public protocol LinkSPI {
     /// No error checking is possible; all writes are assumed to succeed. Framing errors may be hard to diagnose.
     func write(data: Data, count: Int)
 }
+
+extension FtdiSPI: LinkSPI {
+    // maintain conformance with Deft project
+}
