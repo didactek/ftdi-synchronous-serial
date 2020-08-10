@@ -8,13 +8,10 @@
 import Foundation
 
 
-public class FtdiSPI: LinkSPI {
-    let device: USBDevice
-    
+public class FtdiSPI: Ftdi, LinkSPI {
     public init(speedHz: Int) throws {
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
-        device = try USBDevice()
-        
+        try super.init()
         configurePorts()
         confirmMPSSEModeEnabled()
         configureMPSSEForSPI(frequencyHz: speedHz)
@@ -54,6 +51,17 @@ public class FtdiSPI: LinkSPI {
         // pin directions
         initializePinState()
     }
+}
+
+
+public class Ftdi {
+    let device: USBDevice
+
+    
+    public init() throws {
+        device = try USBDevice()
+    }
+
     
     func initializePinState() {
         setDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
