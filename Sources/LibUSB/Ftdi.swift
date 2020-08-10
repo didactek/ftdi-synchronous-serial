@@ -16,10 +16,6 @@ public class Ftdi {
     }
 
     
-    func initializePinState() {
-        setDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
-    }
-    
     /// AN_135_MPSSE_Basics lifetime: Reset MPSSE and close port:
     func endMPSSE() {
         // Reset MPSSE
@@ -41,17 +37,7 @@ public class Ftdi {
         case syncff = 0x40  // Single Channel Synchronous FIFO mode
     }
     
-    struct SpiHardwarePins: OptionSet {
-        let rawValue: UInt8
-        
-        static let clock   = SpiHardwarePins(rawValue: 1 << 0)
-        static let dataOut = SpiHardwarePins(rawValue: 1 << 1)
-        static let dataIn  = SpiHardwarePins(rawValue: 1 << 2)
-        
-        static let outputs: SpiHardwarePins = [.clock, .dataOut]
-        static let inputs: SpiHardwarePins = [.dataIn]
-    }
-    
+     
     // AN_108: Command Processor for MPSSE and MCU Host Bus Emulation Modes
     // Ch 3: Command Definitions
     enum MpsseCommand: UInt8 {
