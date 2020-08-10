@@ -141,6 +141,7 @@ public class FtdiSPI: LinkSPI {
     }
     
     func checkMPSSEResult() {
+        // FIXME: some commands return information (like 'getBits*')
         let resultMessage = device.bulkTransferIn()
         print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
         guard resultMessage.count >= 2 else {
@@ -230,8 +231,9 @@ public class FtdiSPI: LinkSPI {
         let pinSpec = Data([values, outputMask])
         callMPSSE(command: cmd, arguments: pinSpec)
     }
-    
-    #if true  // block crediting pyftdi
+}
+
+extension FtdiSPI {
     // Implementation of these D2XX analogs was made possible by pyftdi.
     // FIXME: GIVE CREDIT:
     //    # Copyright (C) 2010-2020 Emmanuel Blot <emmanuel.blot@free.fr>
@@ -266,9 +268,4 @@ public class FtdiSPI: LinkSPI {
         let value = mode.rawValue << 8 | UInt16(outputPinMask)
         controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
     }
-    
-    
-    // END Implementation of pyftdi documented constants/patterns
-    #endif
 }
-
