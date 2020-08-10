@@ -34,7 +34,7 @@
 import Foundation
 
 
-extension FtdiSPI {
+extension Ftdi {
     enum BRequestType: UInt8 {
         case reset = 0x0  // Reset the port
         case setModemControl = 0x1  // Set the modem control register
