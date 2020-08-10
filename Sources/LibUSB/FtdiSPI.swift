@@ -113,8 +113,8 @@ public class FtdiSPI: LinkSPI {
         // 3.8 Clock
         case setTCKDivisor = 0x86  // Set TCK/SK divisor
         // 6 FT232H, FT2232H & FT4232H only
-        case disableClockDivide5 = 0x8a  // Enable 60 MHz clock changes (30MHz cycle)
-        case enableClockDivide5 = 0x8b  // Enable 12 MHz clock changes (6MHz cycle)
+        case disableClockDivide5 = 0x8a  // Enable 60 MHz clock transitions (30MHz cycle)
+        case enableClockDivide5 = 0x8b  // Enable 12 MHz clock transitions (6MHz cycle)
         case enableClock3Phase = 0x8c  // Enable 3-phase data clocking (I2C)
         case disableClock3Phase = 0x8d  // Disable 3-phase data clocking
         case clockBitsNoData = 0x8e  // Clock for n+1 cycles with no data transfer (JTAG)
@@ -235,39 +235,3 @@ public class FtdiSPI: LinkSPI {
     }
 }
 
-extension FtdiSPI {
-    // Implementation of these D2XX analogs was made possible by pyftdi.
-    // FIXME: GIVE CREDIT:
-    //    # Copyright (C) 2010-2020 Emmanuel Blot <emmanuel.blot@free.fr>
-    //    # Copyright (c) 2016 Emmanuel Bouaziz <ebouaziz@free.fr>
-    //    # All rights reserved.
-
-
-    enum BRequestType: UInt8 {  // FIXME: credit pyftdi
-        case reset = 0x0  // Reset the port
-        case setModemControl = 0x1  // Set the modem control register
-        case setFlowControl = 0x2  // Set flow control register
-        case setBaudrate = 0x3  // Set baud rate
-        case setData = 0x4  // Set the data characteristics of the port
-        case pollModemLineStatus = 0x5  // Get line status
-        case setEventChar = 0x6  // Change event character
-        case setErrorChar = 0x7  // Change error character
-        case setLatencyTimer = 0x9  // Change latency timer
-        case getLatencyTimer = 0xa  // Get latency timer
-        case setBitmode = 0xb  // Change bit mode
-        case getBitmode = 0xc  // Read GPIO pin configuration
-    }
-
-    func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data?) {
-        device.controlTransferOut(bRequest: bRequest.rawValue, value: value, data: data)
-    }
-
-    func setLatency(mSec: UInt16) {
-        controlTransferOut(bRequest: .setLatencyTimer, value: mSec, data: Data())
-    }
-
-    func setBitmode(_ mode: BitMode, outputPinMask: UInt8 = 0) {
-        let value = mode.rawValue << 8 | UInt16(outputPinMask)
-        controlTransferOut(bRequest: .setBitmode, value: value, data: nil)
-    }
-}
