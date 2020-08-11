@@ -50,32 +50,45 @@ public class USBDevice {
         let _ = libusb_get_device_descriptor(device, &descriptor)
         logger.debug("vendor: \(String(descriptor.idVendor, radix: 16))")
         logger.debug("product: \(String(descriptor.idProduct, radix: 16))")
+
+        #if false  // FIXME: do string lookup
+        // get the serial number:
+        // need a lang descriptor
+        let bufSize = 1024
+        var serialNumber = Data(repeating: 0, count: bufSize)
+        let serialNumberIndex = descriptor.iSerialNumber
+        libusb_get_descriptor(handle, LIBUSB_DT_STRING, serialNumberIndex, &serialNumber, Int32(bufSize))
+        // some kind of get_description call here
         logger.debug("device has \(descriptor.bNumConfigurations) configurations")
         #endif
+        #endif
 
-
+        // Actual initialization starts here
         let result = libusb_open(device, &handle)
         guard result == 0 else {
             throw USBError.bindingDeviceHandle
         }
 
-        var configuration: UnsafeMutablePointer<libusb_config_descriptor>? = nil
-        guard libusb_get_active_config_descriptor(device, &configuration) == 0 else {
+        var configurationPtr: UnsafeMutablePointer<libusb_config_descriptor>? = nil
+        guard libusb_get_active_config_descriptor(device, &configurationPtr) == 0 else {
+            throw USBError.getConfiguration
+        }
+        guard let configuration = configurationPtr else {
             throw USBError.getConfiguration
         }
         let configurationIndex = 0
-        let interfacesCount = configuration![configurationIndex].bNumInterfaces
+        let interfacesCount = configuration[configurationIndex].bNumInterfaces
         logger.debug("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
         // FIXME: check ranges at each array; scan for the write endpoint
         let interfaceNumber: Int32 = 0
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
             throw USBError.claimInterface
         }
-        let interface = configuration![configurationIndex].interface[Int(interfaceNumber)]
+        let interface = configuration[configurationIndex].interface[Int(interfaceNumber)]
+
         let endpointCount = interface.altsetting[0].bNumEndpoints
-        logger.debug("Device has \(endpointCount) endpoints")
+        logger.debug("Device/Interface has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
-        // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
         writeEndpoint = endpoints.first {Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
             .bEndpointAddress
         readEndpoint = endpoints.first {!Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
