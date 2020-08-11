@@ -139,7 +139,7 @@ public class USBDevice {
 
     func controlTransfer(requestType: BMRequestType, bRequest: UInt8, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
         // USB 2.0 9.3.4: wIndex
-        // some intpretations (high bits 0):
+        // some interpretations (high bits 0):
         //   as endpoint (direction:1/0:3/endpoint:4)
         //   as interface (interface number)
         // semantics for ControlRequestType.standard requests are defined in
