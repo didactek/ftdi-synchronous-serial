@@ -15,14 +15,21 @@ var logger = Logger(label: "com.didactek.libusb.main")
 // how to default configuration to debug?
 
 struct EndpointAddress {
-    let rawValue: UInt8
+    typealias RawValue = UInt8
+    let rawValue: RawValue
     
     init(rawValue: UInt8) {
         self.rawValue = rawValue
     }
     
+    // USB 2.0: 9.6.6 Endpoint:
+    // Bit 7 is direction IN/OUT
+    let directionMask = Self.RawValue(LIBUSB_ENDPOINT_IN.rawValue | LIBUSB_ENDPOINT_OUT.rawValue)
+
     var isWritable: Bool {
-        get { rawValue & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue }
+        get {
+            return rawValue & directionMask == LIBUSB_ENDPOINT_OUT.rawValue
+        }
     }
 }
 
