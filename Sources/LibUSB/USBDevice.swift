@@ -8,7 +8,15 @@
 //
 
 import Foundation
+import Logging
 import CLibUSB
+
+// FIXME: what should I be using for logging?
+// FIXME: is defining a logging label even *appropriate* for a library function?
+var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.main")
+// how to default configuration to debug?
+
+
 
 public class USBDevice {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
@@ -31,7 +39,7 @@ public class USBDevice {
         guard deviceCount > 0 else {
             fatalError("no USB devices found")
         }
-        print("found \(deviceCount) devices")
+        logger.debug("found \(deviceCount) devices")
 
         // find the device
         // FIXME: be more precise than this!
@@ -40,9 +48,9 @@ public class USBDevice {
         #if true // optional: this is just "we found something!" reassurance
         var descriptor = libusb_device_descriptor()
         let _ = libusb_get_device_descriptor(device, &descriptor)
-        print("vendor:", String(descriptor.idVendor, radix: 16))
-        print("product:", String(descriptor.idProduct, radix: 16))
-        print("device has", descriptor.bNumConfigurations, "configurations")
+        logger.debug("vendor: \(String(descriptor.idVendor, radix: 16))")
+        logger.debug("product: \(String(descriptor.idProduct, radix: 16))")
+        logger.debug("device has \(descriptor.bNumConfigurations) configurations")
         #endif
 
 
@@ -57,7 +65,7 @@ public class USBDevice {
         }
         let configurationIndex = 0
         let interfacesCount = configuration![configurationIndex].bNumInterfaces
-        print("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
+        logger.debug("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
         // FIXME: check ranges at each array; scan for the write endpoint
         let interfaceNumber: Int32 = 0
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
@@ -65,7 +73,7 @@ public class USBDevice {
         }
         let interface = configuration![configurationIndex].interface[Int(interfaceNumber)]
         let endpointCount = interface.altsetting[0].bNumEndpoints
-        print("Device has \(endpointCount) endpoints")
+        logger.debug("Device has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
         // LIBUSB_ENDPOINT_IN/OUT is already shifted to bit 7:
         writeEndpoint = endpoints.first {Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
@@ -153,6 +161,9 @@ public class USBDevice {
     }
 
     public static func initializeUSBLibrary() {
+        // FIXME: how to do this better, and where?
+        logger.logLevel = .trace
+
         let resultRaw = libusb_init(nil)
         let result = libusb_error(rawValue: resultRaw)
         guard result == LIBUSB_SUCCESS else {
