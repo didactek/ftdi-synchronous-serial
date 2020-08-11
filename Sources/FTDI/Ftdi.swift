@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import LibUSB
 
 public class Ftdi {
     let device: USBDevice

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FTDI
 
 /// Send messages over an SPI channel.
 public protocol LinkSPI {
