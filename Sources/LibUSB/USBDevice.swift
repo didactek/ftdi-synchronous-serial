@@ -16,7 +16,17 @@ import CLibUSB
 var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.main")
 // how to default configuration to debug?
 
+struct EndpointAddress {
+    let rawValue: UInt8
 
+    init(rawValue: UInt8) {
+        self.rawValue = rawValue
+    }
+
+    var isWritable: Bool {
+        get { rawValue & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue }
+    }
+}
 
 public class USBDevice {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
@@ -28,8 +38,8 @@ public class USBDevice {
 
     var handle: OpaquePointer? = nil
     var usbWriteTimeout: UInt32 = 5000  // FIXME
-    let writeEndpoint: UInt8
-    let readEndpoint: UInt8
+    let writeEndpoint: EndpointAddress
+    let readEndpoint: EndpointAddress
 
     public static func findDevice() -> OpaquePointer {
         // scan for devices:
@@ -90,10 +100,9 @@ public class USBDevice {
         let endpointCount = interface.altsetting[0].bNumEndpoints
         logger.debug("Device/Interface has \(endpointCount) endpoints")
         let endpoints = (0 ..< endpointCount).map { interface.altsetting[0].endpoint[Int($0)] }
-        writeEndpoint = endpoints.first {Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
-            .bEndpointAddress
-        readEndpoint = endpoints.first {!Self.isWriteable(endpointAddress: $0.bEndpointAddress)}!
-            .bEndpointAddress
+        let addresses = endpoints.map { EndpointAddress(rawValue: $0.bEndpointAddress) }
+        writeEndpoint = addresses.first { $0.isWritable }!
+        readEndpoint = addresses.first { !$0.isWritable }!
     }
     deinit {
         libusb_close(handle)
@@ -161,7 +170,7 @@ public class USBDevice {
         let outgoingCount = Int32(msg.count)
         var data = msg // copy for safety
         let result = data.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, writeEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
+            libusb_bulk_transfer(handle, writeEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
         }
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
@@ -173,7 +182,7 @@ public class USBDevice {
         var readBuffer = Data(repeating: 0, count: bufSize)
         var readCount = Int32(0)
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
+            libusb_bulk_transfer(handle, readEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
         guard result == 0 else {
             let errorMessage = String(cString: libusb_error_name(result))
