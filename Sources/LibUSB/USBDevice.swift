@@ -33,6 +33,14 @@ struct EndpointAddress {
     }
 }
 
+struct DeviceHandle {
+    typealias RawValue = OpaquePointer
+    let rawValue: RawValue
+    init(_ rawValue: RawValue) {
+        self.rawValue = rawValue
+    }
+}
+
 public class USBDevice {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
     enum USBError: Error {
@@ -41,7 +49,7 @@ public class USBDevice {
         case claimInterface
     }
     
-    var handle: OpaquePointer? = nil
+    var handle: DeviceHandle
     var usbWriteTimeout: UInt32 = 5000  // FIXME
     let writeEndpoint: EndpointAddress
     let readEndpoint: EndpointAddress
@@ -80,10 +88,12 @@ public class USBDevice {
     }
         
     public init(device: OpaquePointer) throws {
-        let result = libusb_open(device, &handle)
+        var handlePtr: DeviceHandle.RawValue? = nil
+        let result = libusb_open(device, &handlePtr)
         guard result == 0 else {
             throw USBError.bindingDeviceHandle
         }
+        handle = DeviceHandle(handlePtr!)
         
         var configurationPtr: UnsafeMutablePointer<libusb_config_descriptor>? = nil
         guard libusb_get_active_config_descriptor(device, &configurationPtr) == 0 else {
@@ -97,7 +107,7 @@ public class USBDevice {
         logger.debug("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
         // FIXME: check ranges at each array; scan for the write endpoint
         let interfaceNumber: Int32 = 0
-        guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
+        guard libusb_claim_interface(handle.rawValue, interfaceNumber) == 0 else {
             throw USBError.claimInterface
         }
         let interface = configuration[configurationIndex].interface[Int(interfaceNumber)]
@@ -110,7 +120,7 @@ public class USBDevice {
         readEndpoint = addresses.first { !$0.isWritable }!
     }
     deinit {
-        libusb_close(handle)
+        libusb_close(handle.rawValue)
     }
 
     // USB spec 2.0, sec 9.3: USB Device Requests
@@ -162,7 +172,7 @@ public class USBDevice {
         // Table 9.4 Standard Device Requests
         // ControlRequestType.vendor semantics may vary.
         // FIXME: could we make .standard calls more typesafe?
-        libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
+        libusb_control_transfer(handle.rawValue, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
     }
     
  
@@ -172,7 +182,7 @@ public class USBDevice {
         let outgoingCount = Int32(msg.count)
         var data = msg // copy for safety
         let result = data.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, writeEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
+            libusb_bulk_transfer(handle.rawValue, writeEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
         }
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
@@ -184,7 +194,7 @@ public class USBDevice {
         var readBuffer = Data(repeating: 0, count: bufSize)
         var readCount = Int32(0)
         let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
+            libusb_bulk_transfer(handle.rawValue, readEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
         guard result == 0 else {
             let errorMessage = String(cString: libusb_error_name(result))
