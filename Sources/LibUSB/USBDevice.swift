@@ -27,7 +27,6 @@ public class USBDevice {
     }
 
     var handle: OpaquePointer? = nil
-    var wIndex: UInt16 = 1  // FIXME
     var usbWriteTimeout: UInt32 = 5000  // FIXME
     let writeEndpoint: UInt8
     let readEndpoint: UInt8
@@ -122,7 +121,7 @@ public class USBDevice {
     }
 
 
-    func controlTransferOut(bRequest: UInt8, value: UInt16, data: Data? = nil) {
+    func controlTransferOut(bRequest: UInt8, value: UInt16, wIndex: UInt16, data: Data? = nil) {
         let requestType = controlRequest(type: .vendor, direction: .hostToDevice, recipient: .device)
 
         var dataCopy = Array(data ?? Data())
@@ -139,6 +138,13 @@ public class USBDevice {
     }
 
     func controlTransfer(requestType: BMRequestType, bRequest: UInt8, wValue: UInt16, wIndex: UInt16, data: UnsafeMutablePointer<UInt8>!, wLength: UInt16, timeout: UInt32) -> Int32 {
+        // USB 2.0 9.3.4: wIndex
+        // some intpretations (high bits 0):
+        //   as endpoint (direction:1/0:3/endpoint:4)
+        //   as interface (interface number)
+        // semantics for ControlRequestType.standard requests are defined in
+        // Table 9.4 Standard Device Requests
+        // ControlRequestType.vendor semantics may vary.
         libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
     }
 

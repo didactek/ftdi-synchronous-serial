@@ -62,6 +62,9 @@ extension Ftdi {
 
     // type-safe bridge to device
     func controlTransferOut(bRequest: BRequestType, value: UInt16, data: Data?) {
-        device.controlTransferOut(bRequest: bRequest.rawValue, value: value, data: data)
+        // FIXME: Is it possible to confirm wIndex semantics?
+        // My guess is that it's the endpoint (should use "UInt16(device.writeEndpoint)")
+        // but ftdi.py just uses "1".
+        device.controlTransferOut(bRequest: bRequest.rawValue, value: value, wIndex: 1, data: data)
     }
 }
