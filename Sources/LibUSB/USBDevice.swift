@@ -35,18 +35,9 @@ struct EndpointAddress {
     }
 }
 
-public class USBDevice {
-    static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
-    enum USBError: Error {
-        case bindingDeviceHandle
-        case getConfiguration
-        case claimInterface
-    }
-
-    var handle: OpaquePointer? = nil
-    var usbWriteTimeout: UInt32 = 5000  // FIXME
-    let writeEndpoint: EndpointAddress
-    let readEndpoint: EndpointAddress
+// FIXME: "system"? Could this manage the close() call automatically?
+public class USBBus {
+     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
 
     public static func findDevice() -> OpaquePointer {
         // scan for devices:
@@ -80,6 +71,38 @@ public class USBDevice {
         #endif
         return device!
     }
+
+
+    public static func initializeUSBLibrary() {
+        // FIXME: how to do this better, and where?
+        logger.logLevel = .trace
+
+        let resultRaw = libusb_init(nil)
+        let result = libusb_error(rawValue: resultRaw)
+        guard result == LIBUSB_SUCCESS else {
+            let msg = String(cString: libusb_strerror(result))
+            fatalError("libusb_init failed: \(msg)")
+        }
+    }
+
+    public static func closeUSBLibrary() {
+        libusb_exit(ctx)
+    }
+}
+
+public class USBDevice {
+
+    enum USBError: Error {
+        case bindingDeviceHandle
+        case getConfiguration
+        case claimInterface
+    }
+
+    var handle: OpaquePointer? = nil
+    var usbWriteTimeout: UInt32 = 5000  // FIXME
+    let writeEndpoint: EndpointAddress
+    let readEndpoint: EndpointAddress
+
 
     public init(device: OpaquePointer) throws {
         let result = libusb_open(device, &handle)
@@ -193,21 +216,5 @@ public class USBDevice {
             fatalError("bulkTransfer read returned \(result): \(errorMessage)")
         }
         return readBuffer.prefix(Int(readCount))
-    }
-
-    public static func initializeUSBLibrary() {
-        // FIXME: how to do this better, and where?
-        logger.logLevel = .trace
-
-        let resultRaw = libusb_init(nil)
-        let result = libusb_error(rawValue: resultRaw)
-        guard result == LIBUSB_SUCCESS else {
-            let msg = String(cString: libusb_strerror(result))
-            fatalError("libusb_init failed: \(msg)")
-        }
-    }
-
-    public static func closeUSBLibrary() {
-        libusb_exit(ctx)
     }
 }
