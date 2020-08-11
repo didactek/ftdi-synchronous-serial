@@ -165,10 +165,7 @@ public class USBDevice {
         libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
     }
     
-    static func isWriteable(endpointAddress: UInt8) -> Bool {
-        endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
-    }
-    
+ 
     public func bulkTransferOut(msg: Data) {
         var bytesTransferred = Int32(0)
         
