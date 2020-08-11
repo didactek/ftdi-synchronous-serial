@@ -13,9 +13,9 @@ import FTDI
 exerciseC()
 #endif
 
-USBDevice.initializeUSBLibrary()
+USBBus.initializeUSBLibrary()
 defer {
-    USBDevice.closeUSBLibrary()
+    USBBus.closeUSBLibrary()
 }
 
 do { // hoping block scope triggers FtdiSPI.deinit

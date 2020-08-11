@@ -13,7 +13,7 @@ public class Ftdi {
 
     
     public init() throws {
-        device = try USBDevice(device: USBDevice.findDevice())
+        device = try USBDevice(device: USBBus.findDevice())
     }
 
     
