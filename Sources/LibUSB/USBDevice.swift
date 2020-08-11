@@ -121,7 +121,7 @@ public class USBDevice {
     }
     
 
-    func controlTransferOut(bRequest: UInt8, value: UInt16, wIndex: UInt16, data: Data? = nil) {
+    public func controlTransferOut(bRequest: UInt8, value: UInt16, wIndex: UInt16, data: Data? = nil) {
         let requestType = controlRequest(type: .vendor, direction: .hostToDevice, recipient: .device)
         
         var dataCopy = Array(data ?? Data())
@@ -153,7 +153,7 @@ public class USBDevice {
         endpointAddress & (1 << 7) == LIBUSB_ENDPOINT_OUT.rawValue
     }
     
-    func bulkTransferOut(msg: Data) {
+    public func bulkTransferOut(msg: Data) {
         var bytesTransferred = Int32(0)
         
         let outgoingCount = Int32(msg.count)

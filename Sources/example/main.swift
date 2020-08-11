@@ -7,6 +7,7 @@
 
 import Foundation
 import LibUSB
+import FTDI
 
 #if false
 exerciseC()
