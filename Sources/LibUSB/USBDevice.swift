@@ -29,7 +29,7 @@ public class USBDevice {
     let writeEndpoint: UInt8
     let readEndpoint: UInt8
 
-    public init() throws {
+    public static func findDevice() -> OpaquePointer {
         // scan for devices:
         var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
         let deviceCount = libusb_get_device_list(Self.ctx, &devices)
@@ -59,8 +59,10 @@ public class USBDevice {
         logger.debug("device has \(descriptor.bNumConfigurations) configurations")
         #endif
         #endif
+        return device!
+    }
         
-        // Actual initialization starts here
+    public init(device: OpaquePointer) throws {
         let result = libusb_open(device, &handle)
         guard result == 0 else {
             throw USBError.bindingDeviceHandle
@@ -143,6 +145,7 @@ public class USBDevice {
         // semantics for ControlRequestType.standard requests are defined in
         // Table 9.4 Standard Device Requests
         // ControlRequestType.vendor semantics may vary.
+        // FIXME: could we make .standard calls more typesafe?
         libusb_control_transfer(handle, requestType, bRequest, wValue, wIndex, data, wLength, timeout)
     }
     
