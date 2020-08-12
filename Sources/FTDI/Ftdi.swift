@@ -15,7 +15,8 @@ public class Ftdi {
 
 
     public init() throws {
-        device = try USBBus.findDevice()
+        let usbSubsystem = USBBus()
+        device = try usbSubsystem.findDevice()
     }
 
 
