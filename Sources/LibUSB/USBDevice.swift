@@ -54,9 +54,10 @@ public class USBDevice {
     let readEndpoint: EndpointAddress
 
 
-    /// device: assumes ownership; will decrement reference count on deinit
-    public init(device: OpaquePointer) throws {
+    init(device: OpaquePointer) throws {
         self.device = device
+        libusb_ref_device(device)  // register ownership
+
         let result = libusb_open(device, &handle)  // deinit: libusb_close
         guard result == 0 else {
             throw USBError.bindingDeviceHandle

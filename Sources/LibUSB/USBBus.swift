@@ -15,8 +15,7 @@ import CLibUSB
 public class USBBus {
     static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
 
-    // FIXME: since this is public, should it return a type with clearer semantics?
-    public static func findDevice() -> OpaquePointer {
+     public static func findDevice() throws -> USBDevice {
         // scan for devices:
         var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
         let deviceCount = libusb_get_device_list(Self.ctx, &devices)
@@ -38,8 +37,7 @@ public class USBBus {
         deviceDetail(device: device!)
         #endif
 
-        libusb_ref_device(device!)  // protect this one from deferred libusb_free_device_list
-        return device!
+        return try USBDevice(device: device!)
     }
 
     static func deviceDetail(device: OpaquePointer) {
