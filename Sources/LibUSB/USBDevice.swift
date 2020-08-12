@@ -56,7 +56,6 @@ public class USBDevice {
 
     init(device: OpaquePointer) throws {
         self.device = device
-        libusb_ref_device(device)  // register ownership
 
         let result = libusb_open(device, &handle)  // deinit: libusb_close
         guard result == 0 else {
@@ -88,6 +87,8 @@ public class USBDevice {
         let addresses = endpoints.map { EndpointAddress(rawValue: $0.bEndpointAddress) }
         writeEndpoint = addresses.first { $0.isWritable }!
         readEndpoint = addresses.first { !$0.isWritable }!
+
+        libusb_ref_device(device!)  // now we won't throw
     }
     deinit {
         libusb_release_interface(handle, interfaceNumber)
