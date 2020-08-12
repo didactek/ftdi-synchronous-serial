@@ -45,19 +45,27 @@ public class USBDevice {
         case claimInterface
     }
 
+    let device: OpaquePointer
     var handle: OpaquePointer? = nil
+    let interfaceNumber: Int32 = 0
+
     var usbWriteTimeout: UInt32 = 5000  // FIXME
     let writeEndpoint: EndpointAddress
     let readEndpoint: EndpointAddress
 
 
+    /// device: assumes ownership; will decrement reference count on deinit
     public init(device: OpaquePointer) throws {
-        let result = libusb_open(device, &handle)
+        self.device = device
+        let result = libusb_open(device, &handle)  // deinit: libusb_close
         guard result == 0 else {
             throw USBError.bindingDeviceHandle
         }
 
         var configurationPtr: UnsafeMutablePointer<libusb_config_descriptor>? = nil
+        defer {
+            libusb_free_config_descriptor(configurationPtr)
+        }
         guard libusb_get_active_config_descriptor(device, &configurationPtr) == 0 else {
             throw USBError.getConfiguration
         }
@@ -68,8 +76,7 @@ public class USBDevice {
         let interfacesCount = configuration[configurationIndex].bNumInterfaces
         logger.debug("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
         // FIXME: check ranges at each array; scan for the write endpoint
-        let interfaceNumber: Int32 = 0
-        guard libusb_claim_interface(handle, interfaceNumber) == 0 else {
+        guard libusb_claim_interface(handle, interfaceNumber) == 0 else {  // deinit: libusb_release_interface
             throw USBError.claimInterface
         }
         let interface = configuration[configurationIndex].interface[Int(interfaceNumber)]
@@ -82,7 +89,9 @@ public class USBDevice {
         readEndpoint = addresses.first { !$0.isWritable }!
     }
     deinit {
+        libusb_release_interface(handle, interfaceNumber)
         libusb_close(handle)
+        libusb_unref_device(device)
     }
 
     // USB spec 2.0, sec 9.3: USB Device Requests
@@ -159,7 +168,7 @@ public class USBDevice {
             libusb_bulk_transfer(handle, readEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
         }
         guard result == 0 else {
-            let errorMessage = String(cString: libusb_error_name(result))
+            let errorMessage = String(cString: libusb_error_name(result)) // must not free message
             fatalError("bulkTransfer read returned \(result): \(errorMessage)")
         }
         return readBuffer.prefix(Int(readCount))
