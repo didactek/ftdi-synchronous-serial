@@ -9,14 +9,13 @@ import Foundation
 import CLibUSB
 
 
-// FIXME: "system"? Could this manage the close() call automatically?
 public class USBBus {
-    static let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
+    let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
     
-     public static func findDevice() throws -> USBDevice {
+    public func findDevice() throws -> USBDevice {
         // scan for devices:
         var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
-        let deviceCount = libusb_get_device_list(Self.ctx, &devices)
+        let deviceCount = libusb_get_device_list(ctx, &devices)
         defer {
             libusb_free_device_list(devices, 1)
         }
@@ -34,11 +33,11 @@ public class USBBus {
         #if true
         deviceDetail(device: device!)
         #endif
-
-        return try USBDevice(device: device!)
+        
+        return try USBDevice(subsystem: self, device: device!)
     }
     
-    static func deviceDetail(device: OpaquePointer) {
+    func deviceDetail(device: OpaquePointer) {
         var descriptor = libusb_device_descriptor()
         let _ = libusb_get_device_descriptor(device, &descriptor)
         logger.debug("vendor: \(String(descriptor.idVendor, radix: 16))")
@@ -55,9 +54,8 @@ public class USBBus {
         logger.debug("device has \(descriptor.bNumConfigurations) configurations")
         #endif
     }
-
-
-    public static func initializeUSBLibrary() {
+    
+     public init() {
         // FIXME: how to do this better, and where?
         logger.logLevel = .trace
         
@@ -69,7 +67,7 @@ public class USBBus {
         }
     }
     
-    public static func closeUSBLibrary() {
+    deinit {
         libusb_exit(ctx)
     }
 }

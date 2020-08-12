@@ -13,11 +13,6 @@ import FTDI
 exerciseC()
 #endif
 
-USBBus.initializeUSBLibrary()
-defer {
-    USBBus.closeUSBLibrary()
-}
-
 do { // hoping block scope triggers FtdiSPI.deinit
     let bus = try! FtdiSPI(speedHz: 1_000_000)
     let ledPrologue = Data(repeating: 0, count: 4)

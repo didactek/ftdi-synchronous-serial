@@ -43,6 +43,7 @@ public class USBDevice {
         case claimInterface
     }
     
+    let subsystem: USBBus // keep the subsytem alive
     let device: OpaquePointer
     var handle: OpaquePointer? = nil
     let interfaceNumber: Int32 = 0
@@ -52,7 +53,8 @@ public class USBDevice {
     let readEndpoint: EndpointAddress
 
 
-    init(device: OpaquePointer) throws {
+    init(subsystem: USBBus, device: OpaquePointer) throws {
+        self.subsystem = subsystem
         self.device = device
 
         let result = libusb_open(device, &handle)  // deinit: libusb_close
@@ -86,7 +88,7 @@ public class USBDevice {
         writeEndpoint = addresses.first { $0.isWritable }!
         readEndpoint = addresses.first { !$0.isWritable }!
 
-        libusb_ref_device(device!)  // now we won't throw
+        libusb_ref_device(device)  // now we won't throw
     }
     deinit {
         libusb_release_interface(handle, interfaceNumber)
