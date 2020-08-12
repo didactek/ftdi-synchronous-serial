@@ -32,12 +32,19 @@ public class USBBus {
         // is the right way to go....
         let device = devices![0]
         
-        #if true // optional: this is just "we found something!" reassurance
+        #if true
+        deviceDetail(device: device!)
+        #endif
+
+        libusb_ref_device(device!)  // protect this one from deferred libusb_free_device_list
+        return device!
+    }
+    
+    static func deviceDetail(device: OpaquePointer) {
         var descriptor = libusb_device_descriptor()
         let _ = libusb_get_device_descriptor(device, &descriptor)
         logger.debug("vendor: \(String(descriptor.idVendor, radix: 16))")
         logger.debug("product: \(String(descriptor.idProduct, radix: 16))")
-        #endif
         
         #if false  // FIXME: do string lookup
         // get the serial number:
@@ -49,9 +56,6 @@ public class USBBus {
         // some kind of get_description call here
         logger.debug("device has \(descriptor.bNumConfigurations) configurations")
         #endif
-
-        libusb_ref_device(device!)  // protect this one from deferred libusb_free_device_list
-        return device!
     }
 
 
