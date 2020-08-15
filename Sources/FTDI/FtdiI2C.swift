@@ -14,7 +14,8 @@ import Foundation
 // references:
 // https://en.wikipedia.org/wiki/I²C
 // AN_135 FTDI MPSSE Basics Version 1.1
-
+// AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes
+// https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf
 public class FtdiI2C: Ftdi {
     struct I2CHardwarePins: OptionSet {
         let rawValue: UInt8
@@ -27,6 +28,7 @@ public class FtdiI2C: Ftdi {
 
         static let outputs: I2CHardwarePins = [.clock, .dataOut]
         static let inputs: I2CHardwarePins = [.dataIn]
+        static let tristate: I2CHardwarePins = [.clock, .dataOut]
     }
 
     enum Mode {
@@ -74,12 +76,20 @@ public class FtdiI2C: Ftdi {
 
 
     func configureMPSSEForI2C(mode: Mode) {
+        // Output pins were set when MPSSE was enabled
+
+        // I2C wires may be asserted by any device on the bus:
+        setTristate(lowMask: I2CHardwarePins.tristate.rawValue, highMask: 0)
         // need:
         // 3-phase clock
         // clock speed (100kbps/400kbps/)
-        // floating output pins (bus pulled high; bidirectional) both for data (reply phase) and clock (clock stretching)
-        // if clock stretching is enabled, then need another pin to monitor the clock for pauses
         fatalError("not implemented")
     }
+
+    // FIXME: implement write
+    // FIXME: implement read
+    // FIXME: implement exchange?
+    // FIXME: implement start
+    // FIXME: implement stop
 }
 #endif

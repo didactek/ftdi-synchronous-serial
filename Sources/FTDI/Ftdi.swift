@@ -76,7 +76,7 @@ public class Ftdi {
         case clockWaitOnLowTimeout = 0x9d  // Clock until GPIOL1 is low or 8*(n+1) cycles
 
         // 7.1 Drive on '0'; Tristate on '1'
-        case driveZero = 0x9e  // Set output pins to float on '1' (I2C)
+        case onlyDriveZero = 0x9e  // Set output pins to float on '1' (I2C)
 
         case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
 
@@ -85,7 +85,7 @@ public class Ftdi {
 
 
 
-    func callMPSSE(command: MpsseCommand, arguments: Data) {
+    private func callMPSSE(command: MpsseCommand, arguments: Data) {
         let cmd = Data([command.rawValue]) + arguments
         device.bulkTransferOut(msg: cmd)
         checkMPSSEResult()
@@ -182,4 +182,17 @@ public class Ftdi {
         let pinSpec = Data([values, outputMask])
         callMPSSE(command: cmd, arguments: pinSpec)
     }
+
+    /// Allow output pins to float on '1' (to be pulled up by bus or sunk down by other devices)
+    ///
+    /// lowMask: bit field for pins; 1 = float on 'high'; 0 = actively pull high on 'high'
+    /// highMask: bit field for pins;1 = float on 'high'; 0 = actively pull high on 'high'
+    ///
+    /// AN 108 7.1 Set I/O to only drive on a ‘0’ and tristate on a ‘1’
+    func setTristate(lowMask: UInt8, highMask: UInt8) {
+        let pinSpec = Data([lowMask, highMask])
+        callMPSSE(command: .onlyDriveZero, arguments: pinSpec)
+    }
+
+
 }
