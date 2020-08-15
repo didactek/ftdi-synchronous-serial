@@ -140,6 +140,15 @@ public class Ftdi {
         callMPSSE(command: .setTCKDivisor, arguments: argument)
     }
     
+    func disableAdaptiveClock() {
+        callMPSSE(command: .disableAdaptiveClocking, arguments: Data())
+    }
+    
+    // data after both rising and falling edges
+    func enableThreePhaseClock() {
+        callMPSSE(command: .enableClock3Phase, arguments: Data())
+    }
+    
     public func write(data: Data, count: Int) {
         guard count > 0 else {
             fatalError("write must send minimum of one byte")

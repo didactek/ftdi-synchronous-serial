@@ -23,6 +23,7 @@ public class FtdiI2C: Ftdi {
         static let dataOut = I2CHardwarePins(rawValue: 1 << 1)
         static let dataIn  = I2CHardwarePins(rawValue: 1 << 2)
         // if one needs clock stretching, a pin should be allocated to watch for the bus pausing the clock signal
+        // GPIOl0 might be used for Write Protect
         
         static let outputs: I2CHardwarePins = [.clock, .dataOut]
         static let inputs: I2CHardwarePins = [.dataIn]
@@ -38,6 +39,13 @@ public class FtdiI2C: Ftdi {
         case ultraFast // 5 Mbps
         case turbo // 1.4 Mbps  // Wikipedia
         #endif
+        
+        func clockSpeed() -> Int {
+            switch self {
+            case .standard:
+                return 100_000
+            }
+        }
     }
     
     public override init() throws {
@@ -78,9 +86,18 @@ public class FtdiI2C: Ftdi {
 
         // I2C wires may be asserted by any device on the bus:
         setTristate(lowMask: I2CHardwarePins.tristate.rawValue, highMask: 0)
-        // need:
-        // 3-phase clock
-        // clock speed (100kbps/400kbps/)
+
+        // Clock
+        disableAdaptiveClock()
+        setClock(frequencyHz: mode.clockSpeed())
+        enableThreePhaseClock()
+
+        let bitsHighAtStart: I2CHardwarePins = [.clock, .dataOut]
+        setDataBits(values: bitsHighAtStart.rawValue,
+                    outputMask: I2CHardwarePins.outputs.rawValue,
+                    pins: .lowBytes)
+        
+        
         fatalError("not implemented")
     }
     
