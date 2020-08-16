@@ -103,6 +103,11 @@ public class Ftdi {
         case clockWaitOnHighTimeout = 0x9c  // Clock until GPIOL1 is high or 8*(n+1) cycles
         case clockWaitOnLowTimeout = 0x9d  // Clock until GPIOL1 is low or 8*(n+1) cycles
         
+        // 5 Instruction release/flow control
+        
+        // 5.1 Send Immediate
+        case sendImmediate = 0x87  // Flush; request immediate response
+        
         // 7.1 Drive on '0'; Tristate on '1'
         case onlyDriveZero = 0x9e  // Set output pins to float on '1' (I2C)
         
