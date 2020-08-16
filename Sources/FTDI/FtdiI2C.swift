@@ -153,9 +153,19 @@ public class FtdiI2C: Ftdi {
         let ack = read(bits: 1, edge: .rising)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
-            fatalError("failed to get ACK on byte")
+            fatalError("failed to get ACK writing byte")
         }
         // FIXME: mess with pins?
+    }
+
+    func readByteThenAck() -> UInt8 {
+        let datum = read(bits: 8, edge: .falling)
+        let ack = read(bits: 1, edge: .rising)
+        guard ack == 0 else {
+            fatalError("failed to get ACK reading byte")
+        }
+        // FIXME: mess with pins?
+        return datum
     }
 
     enum RWIndicator: UInt8 {
@@ -180,52 +190,16 @@ public class FtdiI2C: Ftdi {
         }
     }
 
-    #if false
-    public func write(data: Data, count: Int) {
-        let writtenCount = data.withUnsafeBytes() { ptr in
-            systemWrite(fileDescriptor, ptr.baseAddress, count)
-        }
-        assert(writtenCount == count)
-    }
+    func read(address: UInt8, data: inout Data, count: Int) {
+        sendStart()
+        let controlByte = makeControlByte(address: address, direction: .read)
+        writeByteReadAck(byte: controlByte)
 
-    public func read(data: inout Data, count: Int) {
-        let receivedCount = data.withUnsafeMutableBytes() { ptr in
-            systemRead(fileDescriptor, ptr.baseAddress, count)
-        }
-        assert(receivedCount == count)
-    }
-
-    public func writeAndRead(sendFrom: Data, sendCount: Int, receiveInto: inout Data, receiveCount: Int) {
-        var sendCopy = sendFrom  // won't be written to, but ioctl signature allows writing, and having semantics dependent on flags makes this hard to prove. Use a copy so the compiler is rightfully happy about safety.
-        sendCopy.withUnsafeMutableBytes { sendRaw in
-            receiveInto.withUnsafeMutableBytes { recvRaw in
-                let sendBuffer = sendRaw.bindMemory(to: __u8.self)
-                let sendMsg = i2c_msg(
-                    addr: __u16(nodeAddress),
-                    flags: __u16(0),   // write is the default (no flags set)
-                    len: __u16(sendCount),
-                    buf: sendBuffer.baseAddress)
-
-                let recvBuffer = recvRaw.bindMemory(to: __u8.self)
-                let recvMsg = i2c_msg(
-                    addr: __u16(nodeAddress),
-                    flags: __u16(I2C_M_RD),
-                    len: __u16(receiveCount),
-                    buf: recvBuffer.baseAddress)
-
-                var conversation = [sendMsg, recvMsg]
-                conversation.withUnsafeMutableBufferPointer { messages in
-                    var callInfo = i2c_rdwr_ioctl_data(msgs: messages.baseAddress, nmsgs: __u32(messages.count))
-                    let receivedCount = ioctl(fileDescriptor, UInt(I2C_RDWR), &callInfo)
-                    assert(receivedCount == receiveCount)
-                }
-            }
+        data.removeAll()
+        for _ in 0 ..< count {
+            let datum = readByteThenAck()
+            data.append(datum)
         }
     }
-    #endif
-    // FIXME: implement write
-    // FIXME: implement read
-    // FIXME: implement exchange?
-    // FIXME: implement stop
 }
 #endif
