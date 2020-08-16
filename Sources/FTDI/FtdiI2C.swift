@@ -14,6 +14,9 @@ import Foundation
 // AN_135 FTDI MPSSE Basics Version 1.1
 // AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes
 // https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf
+
+
+// FIXME: buffer commands and send as a group
 public class FtdiI2C: Ftdi {
     struct I2CHardwarePins: OptionSet {
         let rawValue: UInt8
@@ -101,10 +104,51 @@ public class FtdiI2C: Ftdi {
         fatalError("not implemented")
     }
     
+    func sendStart() {
+        let startHold: I2CHardwarePins = [.clock, .dataOut]
+        let startSetup: I2CHardwarePins = [.clock]
+        let startBegin: I2CHardwarePins = []
+
+        // loop count suggested in AN 113
+        // goal here is to hold pins for 600ns
+        // FIXME: confirm that there's a basis for this?
+        for _ in 0 ..< 4 {
+            setDataBits(values: startHold.rawValue,
+                        outputMask: I2CHardwarePins.outputs.rawValue,
+                        pins: .lowBytes)
+        }
+        for _ in 0 ..< 4 {
+            setDataBits(values: startSetup.rawValue,
+                        outputMask: I2CHardwarePins.outputs.rawValue,
+                        pins: .lowBytes)
+        }
+        setDataBits(values: startBegin.rawValue,
+                    outputMask: I2CHardwarePins.outputs.rawValue,
+                    pins: .lowBytes)
+    }
+    
+    func sendStop() {
+        let stop1: I2CHardwarePins = [.clock]
+        let stop2: I2CHardwarePins = [.clock, .dataOut]
+
+        
+        for _ in 0 ..< 4 {  // goal here is to hold pins for 600ns
+            setDataBits(values: stop1.rawValue,
+                        outputMask: I2CHardwarePins.outputs.rawValue,
+                        pins: .lowBytes)
+        }
+        for _ in 0 ..< 4 {
+            setDataBits(values: stop2.rawValue,
+                        outputMask: I2CHardwarePins.outputs.rawValue,
+                        pins: .lowBytes)
+        }
+
+        // example sets tristate, but I don't understand the need
+    }
+    
     // FIXME: implement write
     // FIXME: implement read
     // FIXME: implement exchange?
-    // FIXME: implement start
     // FIXME: implement stop
 }
 #endif
