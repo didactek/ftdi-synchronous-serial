@@ -99,9 +99,6 @@ public class FtdiI2C: Ftdi {
         setDataBits(values: bitsHighAtStart.rawValue,
                     outputMask: I2CHardwarePins.outputs.rawValue,
                     pins: .lowBytes)
-        
-        
-        fatalError("not implemented")
     }
     
     func sendStart() {
