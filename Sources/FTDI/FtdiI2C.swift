@@ -112,7 +112,7 @@ public class FtdiI2C: Ftdi {
         let startBegin: I2CHardwarePins = []
 
         // loop count suggested in AN 113
-        // goal here is to hold pins for 600ns
+        // goal of loop is to hold pins for 600ns
         // FIXME: confirm that there's a basis for this?
         for _ in 0 ..< 4 {
             setDataBits(values: startHold.rawValue,
@@ -134,7 +134,7 @@ public class FtdiI2C: Ftdi {
         let stop2: I2CHardwarePins = [.clock, .dataOut]
 
 
-        for _ in 0 ..< 4 {  // goal here is to hold pins for 600ns
+        for _ in 0 ..< 4 {  // goal of loop is to hold pins for 600ns
             setDataBits(values: stop1.rawValue,
                         outputMask: I2CHardwarePins.outputs.rawValue,
                         pins: .lowBytes)

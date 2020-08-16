@@ -204,10 +204,10 @@ public class Ftdi {
         case highBytes // ACBUS 7-0
         case lowBytes  // ADBUS 7-0
 
-        // By encoding the parallelism of opCodes, we can reduce the number of
-        // explicit implementations of functions. Because the compiler will enforce
+        // By encoding the parallel semantics of opCodes, we can reduce the number of
+        // specialized implementations of functions. Because the compiler will enforce
         // case coverage, it reminds us to keep these opCode maps complete.
-        func opCodeSet() -> MpsseCommand {
+        func cmdSetBits() -> MpsseCommand {
             switch self {
             case .highBytes:
                 return .setBitsHigh
@@ -222,7 +222,7 @@ public class Ftdi {
     /// values sets level on output pins
     /// 1 in outputMask marks pin as an output
     func setDataBits(values: UInt8, outputMask: UInt8, pins: GpioBlock) {
-        let cmd = pins.opCodeSet()
+        let cmd = pins.cmdSetBits()
         let pinSpec = Data([values, outputMask])
         callMPSSE(command: cmd, arguments: pinSpec)
     }
