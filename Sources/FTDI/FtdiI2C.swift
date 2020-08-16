@@ -155,14 +155,27 @@ public class FtdiI2C: Ftdi {
         }
         // FIXME: mess with pins?
     }
+    
+    enum RWIndicator: UInt8 {
+        case read = 0x01
+        case write = 0x00
+    }
+    
+    func makeControlByte(address: UInt8, direction: RWIndicator) -> UInt8 {
+        guard address < 0x80 else {
+            fatalError("address out of range")
+        }
+        return address << 1 | direction.rawValue
+    }
 
     /// Write bytes without sending a 'stop'
-    func write(address: Int, data: Data) {
-        // FIXME: should this include a 'start' as a matter of practice?
-        // first byte: address + indication of 'write'
-        // then: length
-        // then: data
-        fatalError("not implemented")
+    func write(address: UInt8, data: Data) {
+        sendStart()
+        let controlByte = makeControlByte(address: address, direction: .write)
+        let segment = Data([controlByte]) + data
+        for byte in segment {
+            writeByteReadAck(byte: byte)
+        }
     }
 
     #if false
