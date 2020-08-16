@@ -255,6 +255,39 @@ public class Ftdi {
         callMPSSE(command: command, arguments: Data([sizeSpec, ofDatum]))
     }
 
+
+    // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
+    public func read(bits: Int, edge: Edge, bitOrder: BitOrder = .msb) -> UInt8 {
+        guard bits > 0 else {
+            fatalError("write must send minimum of one bit")
+        }
+
+        let command: MpsseCommand
+        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+        switch bitOrder {
+        case .msb:
+            switch edge {
+            case .rising:
+                command = .readBitsPveMsb
+            case .falling:
+                command = .readBitsPveMsb
+            }
+        case .lsb:
+            switch edge {
+            case .rising:
+                command = .readBitsPveLsb
+            case .falling:
+                command = .readBitsNveLsb
+            }
+        }
+
+        let sizeSpec = UInt8(bits - 1)
+
+        callMPSSE(command: command, arguments: Data([sizeSpec]))
+        // FIXME: read result
+        fatalError("read of MPSSEE result not implemented")
+    }
+
     enum GpioBlock {
         // lots of commands operate on either the high byte pins or the low byte
         // pins.

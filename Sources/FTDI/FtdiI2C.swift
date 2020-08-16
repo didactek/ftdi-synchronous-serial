@@ -148,7 +148,14 @@ public class FtdiI2C: Ftdi {
     // clock out 8 bits; read in 1
     // FIXME: do we return the bit read?
     func writeByteReadAck(byte: UInt8) {
-        fatalError("not implemented")
+        write(bits: 8, ofDatum: byte, edge: .falling)
+        // FIXME: set clock low?
+        let ack = read(bits: 1, edge: .rising)
+        // FIXME: sendImmediate covered by read?
+        guard ack == 0 else {
+            fatalError("failed to get ACK on byte")
+        }
+        // FIXME: mess with pins?
     }
 
     /// Write bytes without sending a 'stop'
