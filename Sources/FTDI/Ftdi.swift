@@ -46,7 +46,37 @@ public class Ftdi {
     // Ch 3: Command Definitions
     enum MpsseCommand: UInt8 {
         // 3.2 Data Shifting (sending serial data synchronized with clock)
+        // Pve == +ve == rising edge
+        // Nve == -ve == falling edge
+
+        // 3.3 Data Shifting, MSB
+        case writeBytesPveMsb = 0x10
         case writeBytesNveMsb = 0x11
+        case writeBitsPveMsb = 0x12
+        case writeBitsNveMsb = 0x13
+        case readBytesPveMsb = 0x20
+        case readBytesNveMsb = 0x24
+        case readBitsPveMsb = 0x22
+        case readBitsNveMsb = 0x26
+        case outNveInPveBytesMsb = 0x31
+        case outPveInNveBytesMsb = 0x34
+        case outNveInPveBitsMsb = 0x33
+        case outPveInNveBitsMsb = 0x36
+
+        // 3.4 Data Shifting, LSB
+        case writeBytesPveLsb = 0x18
+        case writeBytesNveLsb = 0x19
+        case writeBitsPveLsb = 0x1a
+        case writeBitsNveLsb = 0x1b
+        case readBytesPveLsb = 0x28
+        case readBytesNveLsb = 0x2c
+        case readBitsPveLsb = 0x2a
+        case readBitsNveLsb = 0x2e
+        case outNveInPveBytesLsb = 0x39
+        case outPveInNveBytesLsb = 0x3c
+        case outNveInPveBitsLsb = 0x3b
+        case outPveInNveBitsLsb = 0x3e
+
         // FIXME: add others as necessary/convenient
 
         // 3.6 Set / Read Data Bits High / Low Bytes
