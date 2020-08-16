@@ -22,5 +22,5 @@ do { // hoping block scope triggers FtdiSPI.deinit
     let ledBlue = Data([0xe8, 0xff, 0x00, 0x00])
     let ledRed = Data([0xe8, 0x00, 0x00, 0xff])
     let data = ledPrologue + ledBlue + ledBlue + ledRed + ledBlue + ledBlue + ledEpilogue
-    bus.write(data: data, count: data.count)
+    bus.write(data: data)
 }
