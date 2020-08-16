@@ -17,7 +17,6 @@ public protocol LinkSPI {
     func write(data: Data)
 }
 
-// FIXME: the SPI versions of these may run into the base class semantics. This is the wrong class to assure conformance on; need it on the *link*, which will encode address, etc.
 extension FtdiSPI: LinkSPI {
     // maintain conformance with Deft project
 }
