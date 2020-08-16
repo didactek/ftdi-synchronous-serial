@@ -184,11 +184,11 @@ public class Ftdi {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
     }
     
-    public func write(data: Data, count: Int) {
-        guard count > 0 else {
+    public func write(data: Data) {
+        guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
-        let sizeSpec = UInt16(count - 1)
+        let sizeSpec = UInt16(data.count - 1)
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
         
         callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
