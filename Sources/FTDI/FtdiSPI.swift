@@ -67,4 +67,8 @@ public class FtdiSPI: Ftdi {
         // pin directions
         initializePinState()
     }
+    
+    public func write(data: Data) {
+        write(data: data, edge: .falling)
+    }
 }

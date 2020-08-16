@@ -184,14 +184,44 @@ public class Ftdi {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
     }
     
-    public func write(data: Data) {
+    public enum Edge {
+        case rising // +ve; rising
+        case falling // -ve; falling
+    }
+    
+    public enum BitOrder {
+        case msb // most-significant bit first
+        case lsb // least-significant bit first
+    }
+    
+    public func write(data: Data, edge: Edge, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
+
+        let command: MpsseCommand
+        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+        switch bitOrder {
+        case .msb:
+            switch edge {
+            case .rising:
+                command = .writeBytesPveMsb
+            case .falling:
+                command = .writeBytesPveMsb
+            }
+        case .lsb:
+            switch edge {
+            case .rising:
+                command = .writeBytesPveLsb
+            case .falling:
+                command = .writeBytesNveLsb
+            }
+        }
+
         let sizeSpec = UInt16(data.count - 1)
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
         
-        callMPSSE(command: .writeBytesNveMsb, arguments: sizePrologue + data)
+        callMPSSE(command: command, arguments: sizePrologue + data)
     }
     
     enum GpioBlock {
