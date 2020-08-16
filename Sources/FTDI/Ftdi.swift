@@ -226,6 +226,35 @@ public class Ftdi {
         callMPSSE(command: command, arguments: sizePrologue + data)
     }
 
+    public func write(bits: Int, ofDatum: UInt8, edge: Edge, bitOrder: BitOrder = .msb) {
+        guard bits > 0 else {
+            fatalError("write must send minimum of one bit")
+        }
+
+        let command: MpsseCommand
+        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+        switch bitOrder {
+        case .msb:
+            switch edge {
+            case .rising:
+                command = .writeBitsPveMsb
+            case .falling:
+                command = .writeBitsPveMsb
+            }
+        case .lsb:
+            switch edge {
+            case .rising:
+                command = .writeBitsPveLsb
+            case .falling:
+                command = .writeBitsNveLsb
+            }
+        }
+
+        let sizeSpec = UInt8(bits - 1)
+
+        callMPSSE(command: command, arguments: Data([sizeSpec, ofDatum]))
+    }
+
     enum GpioBlock {
         // lots of commands operate on either the high byte pins or the low byte
         // pins.
