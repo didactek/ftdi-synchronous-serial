@@ -11,9 +11,9 @@ public class FtdiI2CDevice {
     let address: UInt8
     let bus: FtdiI2C
     
-    public init(bus: FtdiI2C, address: UInt8) {
+    public init(bus: FtdiI2C, address: Int) {
         self.bus = bus
-        self.address = address
+        self.address = UInt8(address)
     }
     
     public func write(data: Data) {
