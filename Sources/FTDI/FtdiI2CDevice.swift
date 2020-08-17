@@ -13,9 +13,10 @@ public class FtdiI2CDevice {
     let address: UInt8
     let bus: FtdiI2C
 
-    public init(bus: FtdiI2C, address: Int) {
+    // FIXME: throw if the address isn't found on the bus?
+    public init(bus: FtdiI2C, nodeAddress: Int) throws {
         self.bus = bus
-        self.address = UInt8(address)
+        self.address = UInt8(nodeAddress)
     }
 
     public func write(data: Data) {
