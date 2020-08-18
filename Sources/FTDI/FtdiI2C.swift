@@ -16,7 +16,8 @@ import Foundation
 // AN_135 FTDI MPSSE Basics Version 1.1
 // AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes
 // https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf
-
+// UM10204: I2C-bus specification and user manual
+// https://www.nxp.com/docs/en/user-guide/UM10204.pdf
 
 // FIXME: buffer commands and send as a group
 public class FtdiI2C: Ftdi {
@@ -158,13 +159,25 @@ public class FtdiI2C: Ftdi {
         // FIXME: mess with pins?
     }
 
-    func readByteThenAck() -> UInt8 {
+    /// Read a byte on the bus and respond in ACK time slot.
+    ///
+    /// If last is not set, then this function will ACK the byte receipt
+    /// and the node will send another byte during the next clock cycle.
+    /// If last is true, this function will  NACK (not acknowledge) on the bus, and the
+    /// node will end its writing state and look for the next command.
+    /// UM10204: 3.1.6
+    func readByte(last: Bool = false) -> UInt8 {
         let datum = read(bits: 8, edge: .falling)
-        let ack = read(bits: 1, edge: .rising)
-        guard ack == 0 else {
-            fatalError("failed to get ACK reading byte")
+        // FIXME: for ACK/NACK, confirm edges:
+        if !last {
+            // send ACK by pulling SDA low
+            write(bits: 1, ofDatum: 0, edge: .falling)
         }
-        // FIXME: mess with pins?
+        else {
+            // let bus pull SDA high for NACK
+            // We can either read a bit here instead, or wait for clock edge
+            let _ = read(bits: 1, edge: .rising)
+        }
         return datum
     }
 
@@ -191,15 +204,18 @@ public class FtdiI2C: Ftdi {
     }
 
     func read(address: UInt8, data: inout Data, count: Int) {
+        guard count > 0 else {
+            fatalError("read request needs at least one byte")
+        }
         sendStart()
         let controlByte = makeControlByte(address: address, direction: .read)
         writeByteReadAck(byte: controlByte)
 
         data.removeAll()
-        for _ in 0 ..< count {
-            let datum = readByteThenAck()
-            data.append(datum)
+        for _ in 0 ..< (count - 1) {
+            data.append(readByte())
         }
+        data.append(readByte(last: true))
     }
 }
 #endif
