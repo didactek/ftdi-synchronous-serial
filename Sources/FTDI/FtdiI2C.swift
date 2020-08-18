@@ -104,20 +104,26 @@ public class FtdiI2C: Ftdi {
                     pins: .lowBytes)
     }
 
+    func hold600ns( pinCmd: () -> Void ) {
+        // loop count suggested in AN 113
+        // goal of loop is to hold pins for 600ns
+        // FIXME: confirm this is effective?
+        for _ in 0 ..< 4 {
+            pinCmd()
+        }
+    }
+
     func sendStart() {
         let startHold: I2CHardwarePins = [.clock, .dataOut]
         let startSetup: I2CHardwarePins = [.clock]
         let startBegin: I2CHardwarePins = []
 
-        // loop count suggested in AN 113
-        // goal of loop is to hold pins for 600ns
-        // FIXME: confirm that there's a basis for this?
-        for _ in 0 ..< 4 {
+        hold600ns {
             setDataBits(values: startHold.rawValue,
                         outputMask: I2CHardwarePins.outputs.rawValue,
                         pins: .lowBytes)
         }
-        for _ in 0 ..< 4 {
+        hold600ns {
             setDataBits(values: startSetup.rawValue,
                         outputMask: I2CHardwarePins.outputs.rawValue,
                         pins: .lowBytes)
@@ -132,12 +138,12 @@ public class FtdiI2C: Ftdi {
         let stop2: I2CHardwarePins = [.clock, .dataOut]
 
 
-        for _ in 0 ..< 4 {  // goal of loop is to hold pins for 600ns
+        hold600ns {
             setDataBits(values: stop1.rawValue,
                         outputMask: I2CHardwarePins.outputs.rawValue,
                         pins: .lowBytes)
         }
-        for _ in 0 ..< 4 {
+        hold600ns {
             setDataBits(values: stop2.rawValue,
                         outputMask: I2CHardwarePins.outputs.rawValue,
                         pins: .lowBytes)
