@@ -22,14 +22,16 @@ public class FtdiI2CDevice {
         bus.sendStop()
     }
     
-    public func read(data: inout Data, count: Int) {
-        bus.read(address: address, data: &data, count: count)
+    public func read(count: Int) -> Data {
+        let data = bus.read(address: address, count: count)
         bus.sendStop()
+        return data
     }
     
-    public func writeAndRead(sendFrom: Data, receiveInto: inout Data, receiveCount: Int) {
+    public func writeAndRead(sendFrom: Data, receiveCount: Int) -> Data {
         bus.write(address: address, data: sendFrom)
-        bus.read(address: address, data: &receiveInto, count: receiveCount)
+        let data = bus.read(address: address, count: receiveCount)
         bus.sendStop()
+        return data
     }
 }

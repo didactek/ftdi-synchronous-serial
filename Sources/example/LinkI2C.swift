@@ -26,13 +26,13 @@ public protocol LinkI2C {
     ///
     /// Note: reads via this interface are strictly a pull from the device with no mechanism for the master to encode a request.
     /// Simple conversations are usually highly typical, with only one format for read actions.
-    func read(data: inout Data, count: Int)
+    func read(count: Int) -> Data
     
     
     /// Send and receive bytes in a single I2C conversation.
     ///
     /// Commonly used in patterns like reading from a named register.
-    func writeAndRead(sendFrom: Data, receiveInto: inout Data, receiveCount: Int)
+    func writeAndRead(sendFrom: Data, receiveCount: Int) -> Data
 }
 
 extension FtdiI2CDevice: LinkI2C {
