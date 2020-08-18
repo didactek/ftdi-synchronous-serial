@@ -113,40 +113,43 @@ public class FtdiI2C: Ftdi {
         }
     }
 
-    func sendStart() {
-        let startHold: I2CHardwarePins = [.clock, .dataOut]
-        let startSetup: I2CHardwarePins = [.clock]
-        let startBegin: I2CHardwarePins = []
+    enum TristateOutput {
+        case float  // let the bus float; normally biased high, but may be sunk to zero by another device
+        case zero  // pull down to zero
+    }
 
-        hold600ns {
-            setDataBits(values: startHold.rawValue,
-                        outputMask: I2CHardwarePins.outputs.rawValue,
-                        pins: .lowBytes)
+    /// Set the I2C output pins to specified values
+    func setI2CBus(sda: TristateOutput, clock: TristateOutput) {
+        // FIXME: if other pins are used for GPIO, avoid changing them....
+        var pins = I2CHardwarePins()
+        if sda == .float {
+            pins.insert(.dataOut)
         }
-        hold600ns {
-            setDataBits(values: startSetup.rawValue,
-                        outputMask: I2CHardwarePins.outputs.rawValue,
-                        pins: .lowBytes)
+        if clock == .float {
+            pins.insert(.clock)
         }
-        setDataBits(values: startBegin.rawValue,
+
+        setDataBits(values: pins.rawValue,
                     outputMask: I2CHardwarePins.outputs.rawValue,
                     pins: .lowBytes)
     }
 
-    func sendStop() {
-        let stop1: I2CHardwarePins = [.clock]
-        let stop2: I2CHardwarePins = [.clock, .dataOut]
-
-
+    func sendStart() {
         hold600ns {
-            setDataBits(values: stop1.rawValue,
-                        outputMask: I2CHardwarePins.outputs.rawValue,
-                        pins: .lowBytes)
+            setI2CBus(sda: .float, clock: .float)
         }
         hold600ns {
-            setDataBits(values: stop2.rawValue,
-                        outputMask: I2CHardwarePins.outputs.rawValue,
-                        pins: .lowBytes)
+            setI2CBus(sda: .zero, clock: .float)
+        }
+        setI2CBus(sda: .zero, clock: .zero)
+    }
+
+    func sendStop() {
+        hold600ns {
+            setI2CBus(sda: .zero, clock: .float)
+        }
+        hold600ns {
+            setI2CBus(sda: .float, clock: .float)
         }
 
         // example sets tristate, but I don't understand the need
