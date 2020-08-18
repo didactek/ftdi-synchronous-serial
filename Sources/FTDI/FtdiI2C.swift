@@ -203,7 +203,7 @@ public class FtdiI2C: Ftdi {
         }
     }
 
-    func read(address: UInt8, data: inout Data, count: Int) {
+    func read(address: UInt8, count: Int) -> Data{
         guard count > 0 else {
             fatalError("read request needs at least one byte")
         }
@@ -211,11 +211,13 @@ public class FtdiI2C: Ftdi {
         let controlByte = makeControlByte(address: address, direction: .read)
         writeByteReadAck(byte: controlByte)
 
-        data.removeAll()
+        var data = Data()
         for _ in 0 ..< (count - 1) {
             data.append(readByte())
         }
         data.append(readByte(last: true))
+
+        return data
     }
 }
 #endif
