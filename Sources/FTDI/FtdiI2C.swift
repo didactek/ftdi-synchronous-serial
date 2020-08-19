@@ -96,10 +96,7 @@ public class FtdiI2C: Ftdi {
         setClock(frequencyHz: mode.clockSpeed())
         enableThreePhaseClock()
 
-        let bitsHighAtStart: I2CHardwarePins = [.clock, .dataOut]
-        setDataBits(values: bitsHighAtStart.rawValue,
-                    outputMask: I2CHardwarePins.outputs.rawValue,
-                    pins: .lowBytes)
+        setI2CBus(sda: .float, clock: .float)
     }
     
     func hold600ns( pinCmd: () -> Void ) {
