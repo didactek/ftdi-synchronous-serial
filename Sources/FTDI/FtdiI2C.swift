@@ -99,6 +99,10 @@ public class FtdiI2C: Ftdi {
         setI2CBus(sda: .float, clock: .float)
     }
     
+    //========================
+    // Physical bus managment
+    //========================
+
     func hold600ns( pinCmd: () -> Void ) {
         // loop count suggested in AN 113
         // goal of loop is to hold pins for 600ns
@@ -129,6 +133,10 @@ public class FtdiI2C: Ftdi {
                     pins: .lowBytes)
     }
     
+    /// Signal the start of communications on a bus.
+    ///
+    /// UM10204: 3.1.4: a start condition is indicated by SDA going from high
+    /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
     func sendStart() {
         hold600ns {
             setI2CBus(sda: .float, clock: .float)
@@ -139,6 +147,10 @@ public class FtdiI2C: Ftdi {
         setI2CBus(sda: .zero, clock: .zero)
     }
     
+    /// Signal the end of communications on a bus.
+    ///
+    /// UM1024: 3.1.4: stop is indicated when SDA goes high when clock is high.
+    /// (Pins will remain high until a new conversation is started.)
     func sendStop() {
         hold600ns {
             setI2CBus(sda: .zero, clock: .float)
@@ -146,19 +158,29 @@ public class FtdiI2C: Ftdi {
         hold600ns {
             setI2CBus(sda: .float, clock: .float)
         }
-        // example says "set tristate" but seems to disable outputs on CLK/SDA, which seems like emulating
-        //   setI2CBus(sda: .float, clock: .float)
-        // which is where we left things
     }
     
-    // clock out 8 bits; read in 1
-    // FIXME: do we return the bit read?
+    /// Write a byte and check its ACK
+    ///
+    /// See UM10204, 3.1.5 Byte Format
     func writeByteReadAck(byte: UInt8) {
+        // bus is in ready state {SDA: 0; CLK: 0}
+
+        // Why write on ".falling" edge?
+        // UM10204, 3.1.3 Data Validity
+        // The data on the SDA line must be stable during the HIGH period of the clock.
+        // AN 135, 5.4 Serial Communications
+        // has oscilloscope example of 0x10: byte out using MSB/rising
+        // NB: if clock is already in state, then bus is asserted before the clock transition and the complimentary transition happens halfway through the assertion. It is *not* an edge!
+        // By starting assertion with the clock low, SDA is stable when the clock goes high,
+        // thus fulfilling the spec.
+        // FIXME: this illustrates that "falling/edge" is wrong terminology
         write(bits: 8, ofDatum: byte, edge: .falling)
         // FIXME: set clock low?
         let ack = read(bits: 1, edge: .rising)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
+            // FIXME: throw is better for dynamic errors
             fatalError("failed to get ACK writing byte")
         }
         // FIXME: mess with pins?
@@ -186,7 +208,11 @@ public class FtdiI2C: Ftdi {
         }
         return datum
     }
-    
+
+    //========================
+    // Logical layer
+    //========================
+
     enum RWIndicator: UInt8 {
         case read = 0x01
         case write = 0x00
