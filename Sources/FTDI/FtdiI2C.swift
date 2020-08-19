@@ -7,7 +7,6 @@
 
 import Foundation
 
-#if true // I think I2C might be a lot of work...
 
 // references:
 // https://en.wikipedia.org/wiki/I²C
@@ -125,15 +124,15 @@ public class FtdiI2C: Ftdi {
     /// sendStart and again(?!) by the idle epilogue in sendStop.
     func setI2CBus(sda: TristateOutput, clock: TristateOutput) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
-        var pins = I2CHardwarePins()
+        var floatingPins = I2CHardwarePins()
         if sda == .float {
-            pins.insert(.dataOut)
+            floatingPins.insert(.dataOut)
         }
         if clock == .float {
-            pins.insert(.clock)
+            floatingPins.insert(.clock)
         }
         
-        setDataBits(values: pins.rawValue,
+        setDataBits(values: floatingPins.rawValue,
                     outputMask: I2CHardwarePins.outputs.rawValue,
                     pins: .lowBytes)
     }
@@ -161,8 +160,8 @@ public class FtdiI2C: Ftdi {
     
     // Set the bus to a standard state.
     func setI2CBus(state: NamedBusState) {
-        let states = state.values
-        setI2CBus(sda: states.sda, clock: states.clock)
+        let pins = state.values
+        setI2CBus(sda: pins.sda, clock: pins.clock)
     }
     
     
@@ -182,7 +181,7 @@ public class FtdiI2C: Ftdi {
     
     /// Signal the end of communications on a bus.
     ///
-    /// UM1024: 3.1.4: stop is indicated when SDA goes high when clock is high.
+    /// UM10204: 3.1.4: stop is indicated when SDA goes high when clock is high.
     /// (Pins will remain high until a new conversation is started.)
     func sendStop() {
         hold600ns {
@@ -284,4 +283,3 @@ public class FtdiI2C: Ftdi {
         return data
     }
 }
-#endif
