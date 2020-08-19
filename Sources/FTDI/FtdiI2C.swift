@@ -59,7 +59,7 @@ public class FtdiI2C: Ftdi {
         confirmMPSSEModeEnabled()
         configureMPSSEForI2C(mode: .standard)
         
-        setBusIdle()
+        setI2CBus(state: .idle)
     }
     
     deinit {
@@ -103,6 +103,7 @@ public class FtdiI2C: Ftdi {
     // Physical bus managment
     //========================
 
+    /// UM10204, Chapter 6: signal timing requirements at various bus speeds.
     func hold600ns( pinCmd: () -> Void ) {
         // loop count suggested in AN 113
         // goal of loop is to hold pins for 600ns
@@ -118,6 +119,10 @@ public class FtdiI2C: Ftdi {
     }
     
     /// Set the I2C output pins to specified values
+    ///
+    /// This function does not provide any delay required to hold the lines
+    /// for a clock cycle or stabilization period. If needed, timing should be provided by callers, as by the idle prologue in
+    /// sendStart and again(?!) by the idle epilogue in sendStop.
     func setI2CBus(sda: TristateOutput, clock: TristateOutput) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
         var pins = I2CHardwarePins()
@@ -133,17 +138,33 @@ public class FtdiI2C: Ftdi {
                     pins: .lowBytes)
     }
     
-    /// Release the bus.
-    ///
-    /// This function does not provide the delay required to hold the lines
-    /// to conform to the spec. Timing is guaranteed by idle prologue in
-    /// sendStart and again(?!) by the idle epilogue in sendStop.
-    ///
-    /// UM10204, 3.1.1: SDA and CLK high -> bus is free.
-    /// UM10204, Chapter 6: signal timing requirements at various bus speeds.
-    func setBusIdle() {
-        setI2CBus(sda: .float, clock: .float)
+    struct BusState {
+        let sda: TristateOutput
+        let clock: TristateOutput
     }
+
+    enum NamedBusState {
+        case idle
+        case clockLow
+        
+        var values: BusState {
+            switch(self) {
+            /// UM10204, 3.1.1: SDA and CLK high -> bus is free.
+            case .idle:
+                return BusState(sda: .float, clock: .float)
+            /// Hold the clock low; neutral state between operations
+            case .clockLow:
+                return BusState(sda: .float, clock: .zero)
+            }
+        }
+    }
+    
+    // Set the bus to a standard state.
+    func setI2CBus(state: NamedBusState) {
+        let states = state.values
+        setI2CBus(sda: states.sda, clock: states.clock)
+    }
+    
     
     /// Signal the start of communications on a bus.
     ///
@@ -151,7 +172,7 @@ public class FtdiI2C: Ftdi {
     /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
     func sendStart() {
         hold600ns {
-            setBusIdle()
+            setI2CBus(state: .idle)
         }
         hold600ns {
             setI2CBus(sda: .zero, clock: .float)
@@ -168,7 +189,7 @@ public class FtdiI2C: Ftdi {
             setI2CBus(sda: .zero, clock: .float)
         }
         hold600ns {
-            setBusIdle()
+            setI2CBus(state: .idle)
         }
     }
     
@@ -185,15 +206,14 @@ public class FtdiI2C: Ftdi {
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
         write(bits: 8, ofDatum: byte, startingWithClockAt: .nve)
-        // FIXME: set clock low?
+        setI2CBus(state: .clockLow) // FIXME: should there be a delay here?
         let ack = read(bits: 1, onClockTransitionTo: .pve)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
             // FIXME: throw is better for dynamic errors
             fatalError("failed to get ACK writing byte")
         }
-        // FIXME: mess with pins?
-        //   setI2CBus(sda: .float, clock: .zero)
+        setI2CBus(state: .clockLow)
     }
     
     /// Read a byte on the bus and respond in ACK time slot.
@@ -214,6 +234,9 @@ public class FtdiI2C: Ftdi {
             // let bus pull SDA high for NACK
             // We can either read a bit here instead, or wait for clock edge
             let _ = read(bits: 1, onClockTransitionTo: .pve)
+        }
+        hold600ns {
+            setI2CBus(state: .clockLow)
         }
         return datum
     }
