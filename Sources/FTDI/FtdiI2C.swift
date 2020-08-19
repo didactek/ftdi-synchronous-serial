@@ -58,6 +58,8 @@ public class FtdiI2C: Ftdi {
         configurePorts()
         confirmMPSSEModeEnabled()
         configureMPSSEForI2C(mode: .standard)
+        
+        setBusIdle()
     }
     
     deinit {
@@ -95,8 +97,6 @@ public class FtdiI2C: Ftdi {
         disableAdaptiveClock()
         setClock(frequencyHz: mode.clockSpeed())
         enableThreePhaseClock()
-
-        setI2CBus(sda: .float, clock: .float)
     }
     
     //========================
@@ -133,13 +133,25 @@ public class FtdiI2C: Ftdi {
                     pins: .lowBytes)
     }
     
+    /// Release the bus.
+    ///
+    /// This function does not provide the delay required to hold the lines
+    /// to conform to the spec. Timing is guaranteed by idle prologue in
+    /// sendStart and again(?!) by the idle epilogue in sendStop.
+    ///
+    /// UM10204, 3.1.1: SDA and CLK high -> bus is free.
+    /// UM10204, Chapter 6: signal timing requirements at various bus speeds.
+    func setBusIdle() {
+        setI2CBus(sda: .float, clock: .float)
+    }
+    
     /// Signal the start of communications on a bus.
     ///
     /// UM10204: 3.1.4: a start condition is indicated by SDA going from high
     /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
     func sendStart() {
         hold600ns {
-            setI2CBus(sda: .float, clock: .float)
+            setBusIdle()
         }
         hold600ns {
             setI2CBus(sda: .zero, clock: .float)
@@ -156,7 +168,7 @@ public class FtdiI2C: Ftdi {
             setI2CBus(sda: .zero, clock: .float)
         }
         hold600ns {
-            setI2CBus(sda: .float, clock: .float)
+            setBusIdle()
         }
     }
     
