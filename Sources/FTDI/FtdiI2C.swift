@@ -168,18 +168,15 @@ public class FtdiI2C: Ftdi {
     func writeByteReadAck(byte: UInt8) {
         // bus is in ready state {SDA: 0; CLK: 0}
 
-        // Why write on ".falling" edge?
         // UM10204, 3.1.3 Data Validity
         // The data on the SDA line must be stable during the HIGH period of the clock.
         // AN 135, 5.4 Serial Communications
         // has oscilloscope example of 0x10: byte out using MSB/rising
-        // NB: if clock is already in state, then bus is asserted before the clock transition and the complimentary transition happens halfway through the assertion. It is *not* an edge!
-        // By starting assertion with the clock low, SDA is stable when the clock goes high,
+        // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
-        // FIXME: this illustrates that "falling/edge" is wrong terminology
-        write(bits: 8, ofDatum: byte, edge: .falling)
+        write(bits: 8, ofDatum: byte, startingWithClockAt: .nve)
         // FIXME: set clock low?
-        let ack = read(bits: 1, edge: .rising)
+        let ack = read(bits: 1, onClockTransitionTo: .pve)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
             // FIXME: throw is better for dynamic errors
@@ -197,16 +194,16 @@ public class FtdiI2C: Ftdi {
     /// node will end its writing state and look for the next command.
     /// UM10204: 3.1.6
     func readByte(last: Bool = false) -> UInt8 {
-        let datum = read(bits: 8, edge: .falling)
+        let datum = read(bits: 8, onClockTransitionTo: .nve)
         // FIXME: for ACK/NACK, confirm edges:
         if !last {
             // send ACK by pulling SDA low
-            write(bits: 1, ofDatum: 0, edge: .falling)
+            write(bits: 1, ofDatum: 0, startingWithClockAt: .nve)
         }
         else {
             // let bus pull SDA high for NACK
             // We can either read a bit here instead, or wait for clock edge
-            let _ = read(bits: 1, edge: .rising)
+            let _ = read(bits: 1, onClockTransitionTo: .pve)
         }
         return datum
     }
