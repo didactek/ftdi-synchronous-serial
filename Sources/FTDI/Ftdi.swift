@@ -184,9 +184,9 @@ public class Ftdi {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
     }
     
-    public enum Edge {
-        case rising // +ve; rising
-        case falling // -ve; falling
+    public enum Voltage {
+        case pve // +ve; rising/high
+        case nve // -ve; falling/low
     }
     
     public enum BitOrder {
@@ -194,7 +194,12 @@ public class Ftdi {
         case lsb // least-significant bit first
     }
     
-    public func write(data: Data, edge: Edge, bitOrder: BitOrder = .msb) {
+    
+    /// Write data.
+    ///
+    /// Put data onto the I2C SDA pin, with one bit per clock cycle.
+    /// If the clock is in the specified state, then assert SDA for one clock cycle. If the clock is not in the specified starting state, then set it to starting state and assert SDA; hold SDA for clock cycle.
+    public func write(data: Data, startingWithClockAt: Voltage, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
@@ -203,17 +208,17 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch edge {
-            case .rising:
+            switch startingWithClockAt {
+            case .pve:
                 command = .writeBytesPveMsb
-            case .falling:
+            case .nve:
                 command = .writeBytesNveMsb
             }
         case .lsb:
-            switch edge {
-            case .rising:
+            switch startingWithClockAt {
+            case .pve:
                 command = .writeBytesPveLsb
-            case .falling:
+            case .nve:
                 command = .writeBytesNveLsb
             }
         }
@@ -224,7 +229,7 @@ public class Ftdi {
         callMPSSE(command: command, arguments: sizePrologue + data)
     }
     
-    public func write(bits: Int, ofDatum: UInt8, edge: Edge, bitOrder: BitOrder = .msb) {
+    public func write(bits: Int, ofDatum: UInt8, startingWithClockAt: Voltage, bitOrder: BitOrder = .msb) {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -233,17 +238,17 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch edge {
-            case .rising:
+            switch startingWithClockAt {
+            case .pve:
                 command = .writeBitsPveMsb
-            case .falling:
+            case .nve:
                 command = .writeBitsNveMsb
             }
         case .lsb:
-            switch edge {
-            case .rising:
+            switch startingWithClockAt {
+            case .pve:
                 command = .writeBitsPveLsb
-            case .falling:
+            case .nve:
                 command = .writeBitsNveLsb
             }
         }
@@ -255,7 +260,8 @@ public class Ftdi {
     
     
     // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
-    public func read(bits: Int, edge: Edge, bitOrder: BitOrder = .msb) -> UInt8 {
+    // FIXME: is this a "on transition to" (an edge) or "when clock is", similar to the problem we had with write?
+    public func read(bits: Int, onClockTransitionTo: Voltage, bitOrder: BitOrder = .msb) -> UInt8 {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -264,17 +270,17 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch edge {
-            case .rising:
+            switch onClockTransitionTo {
+            case .pve:
                 command = .readBitsPveMsb
-            case .falling:
+            case .nve:
                 command = .readBitsPveMsb
             }
         case .lsb:
-            switch edge {
-            case .rising:
+            switch onClockTransitionTo {
+            case .pve:
                 command = .readBitsPveLsb
-            case .falling:
+            case .nve:
                 command = .readBitsNveLsb
             }
         }

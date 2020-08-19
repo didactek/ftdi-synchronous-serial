@@ -69,6 +69,6 @@ public class FtdiSPI: Ftdi {
     }
     
     public func write(data: Data) {
-        write(data: data, edge: .falling)
+        write(data: data, startingWithClockAt: .nve)
     }
 }
