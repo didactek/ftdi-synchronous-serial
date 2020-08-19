@@ -209,7 +209,7 @@ public class Ftdi {
             case .rising:
                 command = .writeBytesPveMsb
             case .falling:
-                command = .writeBytesPveMsb
+                command = .writeBytesNveMsb
             }
         case .lsb:
             switch edge {
@@ -239,7 +239,7 @@ public class Ftdi {
             case .rising:
                 command = .writeBitsPveMsb
             case .falling:
-                command = .writeBitsPveMsb
+                command = .writeBitsNveMsb
             }
         case .lsb:
             switch edge {
