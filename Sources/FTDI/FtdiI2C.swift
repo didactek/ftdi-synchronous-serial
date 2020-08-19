@@ -146,8 +146,9 @@ public class FtdiI2C: Ftdi {
         hold600ns {
             setI2CBus(sda: .float, clock: .float)
         }
-
-        // example sets tristate, but I don't understand the need
+        // example says "set tristate" but seems to disable outputs on CLK/SDA, which seems like emulating
+        //   setI2CBus(sda: .float, clock: .float)
+        // which is where we left things
     }
     
     // clock out 8 bits; read in 1
@@ -161,6 +162,7 @@ public class FtdiI2C: Ftdi {
             fatalError("failed to get ACK writing byte")
         }
         // FIXME: mess with pins?
+        //   setI2CBus(sda: .float, clock: .zero)
     }
     
     /// Read a byte on the bus and respond in ACK time slot.
