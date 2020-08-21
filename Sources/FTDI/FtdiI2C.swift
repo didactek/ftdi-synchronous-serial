@@ -205,9 +205,9 @@ public class FtdiI2C: Ftdi {
         // has oscilloscope example of 0x10: byte out using MSB/rising
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
-        write(bits: 8, ofDatum: byte, startingWithClockAt: .nve)
+        write(bits: 8, ofDatum: byte, during: .highClock)
         setI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
-        let ack = read(bits: 1, onClockTransitionTo: .pve)
+        let ack = read(bits: 1, during: .highClock)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
             // FIXME: throw is better for dynamic errors
@@ -224,16 +224,16 @@ public class FtdiI2C: Ftdi {
     /// node will end its writing state and look for the next command.
     /// UM10204: 3.1.6
     func readByte(last: Bool = false) -> UInt8 {
-        let datum = read(bits: 8, onClockTransitionTo: .nve)
+        let datum = read(bits: 8, during: .highClock)
         // FIXME: for ACK/NACK, confirm edges:
         if !last {
             // send ACK by pulling SDA low
-            write(bits: 1, ofDatum: 0, startingWithClockAt: .nve)
+            write(bits: 1, ofDatum: 0, during: .highClock)
         }
         else {
             // let bus pull SDA high for NACK
             // We can either read a bit here instead, or wait for clock edge
-            let _ = read(bits: 1, onClockTransitionTo: .pve)
+            let _ = read(bits: 1, during: .highClock)
         }
         hold600ns {
             setI2CBus(state: .clockLow)

@@ -204,9 +204,10 @@ public class Ftdi {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
     }
     
-    public enum Voltage {
-        case pve // +ve; rising/high
-        case nve // -ve; falling/low
+    public enum DataWindow {
+        case risingEdge // +ve; rising/high
+        case fallingEdge // -ve; falling/low
+        case highClock // 3-phase clock, data valid when clock high
     }
     
     public enum BitOrder {
@@ -222,8 +223,7 @@ public class Ftdi {
     ///
     /// For the "3-phase" clock: set up data for 1/3 cycle; change
     /// clock for 1/3 cycle; return clock to starting for 1/3 cycle.
-    // FIXME: adjust "startingWithClockAt" to accomodate both 2-phase edge semantics and 3-phase hold semantics. "throughClockTransitionTo"?
-    public func write(data: Data, startingWithClockAt: Voltage, bitOrder: BitOrder = .msb) {
+    public func write(data: Data, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
@@ -232,18 +232,22 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch startingWithClockAt {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .writeBytesPveMsb
-            case .nve:
+            case .fallingEdge:
                 command = .writeBytesNveMsb
+            case .highClock:
+                command = .writeBytesNveMsb  // not obvious from documentation; see AN 113 2.3.1 Definitions and Functions for examples
             }
         case .lsb:
-            switch startingWithClockAt {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .writeBytesPveLsb
-            case .nve:
+            case .fallingEdge:
                 command = .writeBytesNveLsb
+            case .highClock:
+                command = .writeBytesNveLsb  // not obvious from documentation
             }
         }
 
@@ -253,7 +257,7 @@ public class Ftdi {
         callMPSSE(command: command, arguments: sizePrologue + data)
     }
     
-    public func write(bits: Int, ofDatum: UInt8, startingWithClockAt: Voltage, bitOrder: BitOrder = .msb) {
+    public func write(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -262,18 +266,22 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch startingWithClockAt {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .writeBitsPveMsb
-            case .nve:
+            case .fallingEdge:
                 command = .writeBitsNveMsb
+            case .highClock:
+                command = .writeBitsNveMsb  // not obvious from documentation; see AN 113 2.3.1 Definitions and Functions for examples
             }
         case .lsb:
-            switch startingWithClockAt {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .writeBitsPveLsb
-            case .nve:
+            case .fallingEdge:
                 command = .writeBitsNveLsb
+            case .highClock:
+                command = .writeBitsNveLsb  // not obvious from documentation
             }
         }
 
@@ -284,8 +292,7 @@ public class Ftdi {
     
     
     // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
-    // FIXME: is this a "on transition to" (an edge) or "when clock is", similar to the problem we had with write?
-    public func read(bits: Int, onClockTransitionTo: Voltage, bitOrder: BitOrder = .msb) -> UInt8 {
+    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb) -> UInt8 {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -294,18 +301,22 @@ public class Ftdi {
         // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
         switch bitOrder {
         case .msb:
-            switch onClockTransitionTo {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .readBitsPveMsb
-            case .nve:
-                command = .readBitsPveMsb
+            case .fallingEdge:
+                command = .readBitsNveMsb
+            case .highClock:
+                command = .readBitsPveMsb  // not obvious from documentation; see AN 113 2.3.1 Definitions and Functions for examples
             }
         case .lsb:
-            switch onClockTransitionTo {
-            case .pve:
+            switch window {
+            case .risingEdge:
                 command = .readBitsPveLsb
-            case .nve:
+            case .fallingEdge:
                 command = .readBitsNveLsb
+            case .highClock:
+                command = .readBitsPveLsb  // not obvious from documentation; see AN 113 2.3.1 Definitions and Functions for examples
             }
         }
 
