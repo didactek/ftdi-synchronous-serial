@@ -96,7 +96,7 @@ public class FtdiI2C: Ftdi {
 
         // Clock
         disableAdaptiveClock()
-        setClock(frequencyHz: mode.clockSpeed())
+        setClock(frequencyHz: mode.clockSpeed(), forThreePhase: true)
         enableThreePhaseClock()
     }
 
@@ -104,7 +104,8 @@ public class FtdiI2C: Ftdi {
     // Physical bus managment
     //========================
 
-    /// UM10204, Chapter 6: signal timing requirements at various bus speeds.
+    /// UM10204, Chapter 6: signal timing requirements at various bus speeds. Table 10 defines wait periods for different modes.
+    // FIXME: 600ns is typical of Fast-mode, yet loop was modeled after FTDI exmaple that was supposedly Standard-mode. Encode Table 10 and use the right delay!
     func hold600ns( pinCmd: () -> Void ) {
         // loop count suggested in AN 113
         // goal of loop is to hold pins for 600ns
@@ -178,7 +179,7 @@ public class FtdiI2C: Ftdi {
         hold600ns {
             setI2CBus(sda: .zero, clock: .float)
         }
-        setI2CBus(sda: .zero, clock: .zero)
+        setI2CBus(sda: .zero, clock: .zero)  // FIXME: .clockLow might be both functionally equivalent and more clear?
     }
 
     /// Signal the end of communications on a bus.
@@ -198,7 +199,7 @@ public class FtdiI2C: Ftdi {
     ///
     /// See UM10204, 3.1.5 Byte Format
     func writeByteReadAck(byte: UInt8) {
-        // bus is in ready state {SDA: 0; CLK: 0}
+        // bus is in ready state (clock low)
 
         // UM10204, 3.1.3 Data Validity
         // The data on the SDA line must be stable during the HIGH period of the clock.
@@ -207,14 +208,14 @@ public class FtdiI2C: Ftdi {
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
         write(bits: 8, ofDatum: byte, startingWithClockAt: .nve)
-        setI2CBus(state: .clockLow) // FIXME: should there be a delay here?
+        setI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
         let ack = read(bits: 1, onClockTransitionTo: .pve)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
             // FIXME: throw is better for dynamic errors
             fatalError("failed to get ACK writing byte")
         }
-        setI2CBus(state: .clockLow)
+        setI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
     /// Read a byte on the bus and respond in ACK time slot.
