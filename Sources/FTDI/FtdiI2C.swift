@@ -222,24 +222,24 @@ public class FtdiI2C: Ftdi {
     ///
     /// If last is not set, then this function will ACK the byte receipt
     /// and the node will send another byte during the next clock cycle.
-    /// If last is true, this function will  NACK (not acknowledge) on the bus, and the
+    /// If last is true, this function will NACK (not acknowledge) on the bus, and the
     /// node will end its writing state and look for the next command.
     /// UM10204: 3.1.6
     func readByte(last: Bool = false) -> UInt8 {
+        enum Acknowledgment: UInt8 {
+            case ack = 0  // pull SDA low
+            // FIXME: use 0b1 or 0b1000_0000 depending on which bit gets sent:
+            case nack = 0xff // let SDA float high
+        }
+        let response: Acknowledgment = last ? .nack : .ack
+
         let datum = read(bits: 8, during: .highClock)
-        // FIXME: for ACK/NACK, confirm edges:
-        if !last {
-            // send ACK by pulling SDA low
-            write(bits: 1, ofDatum: 0, during: .highClock)
-        }
-        else {
-            // let bus pull SDA high for NACK
-            // We can either read a bit here instead, or wait for clock edge
-            let _ = read(bits: 1, during: .highClock)
-        }
-        hold600ns {
+        write(bits: 1, ofDatum: response.rawValue, during: .highClock)
+
+        hold600ns {  // FIXME: this seems spurious given the clocked write of the (n)ack.
             setI2CBus(state: .clockLow)
         }
+
         return datum
     }
 
@@ -271,7 +271,7 @@ public class FtdiI2C: Ftdi {
 
     func read(address: UInt8, count: Int) -> Data{
         guard count > 0 else {
-            fatalError("read request needs at least one byte")
+            fatalError("read request must be for at least one byte")
         }
         sendStart()
         let controlByte = makeControlByte(address: address, direction: .read)
