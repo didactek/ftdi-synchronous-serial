@@ -150,10 +150,10 @@ public class FtdiI2C: Ftdi {
         var values: BusState {
             switch(self) {
             /// UM10204, 3.1.1: SDA and CLK high -> bus is free.
-            case .idle:
+            case .idle:  // unclaimed, idle
                 return BusState(sda: .float, clock: .float)
             /// Hold the clock low; neutral state between operations
-            case .clockLow:
+            case .clockLow:  // clockLow, ready
                 return BusState(sda: .float, clock: .zero)
             }
         }
@@ -175,7 +175,7 @@ public class FtdiI2C: Ftdi {
             setI2CBus(state: .idle)
         }
         hold600ns {
-            setI2CBus(sda: .zero, clock: .float)
+            setI2CBus(sda: .zero, clock: .float)  // "reserveOrRelease"
         }
         setI2CBus(sda: .zero, clock: .zero)  // FIXME: .clockLow might be both functionally equivalent and more clear?
     }
