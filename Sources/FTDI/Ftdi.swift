@@ -163,14 +163,29 @@ public class Ftdi {
             fatalError("MPSSE should have explained the bad opcode")
         }
     }
-    
-    func setClock(frequencyHz: Int) {
+
+    /// Set the clock output frequency.
+    ///
+    /// This sets up an internal clock that triggers each pin change managed by the
+    /// clock circuitry. To drive a simple square wave, two triggers are needed per cycle:
+    /// one for each XOR of the clock.
+    ///
+    /// For the three-phase clock, three state changes are required,
+    /// so the effective frequency on the clocked pin is 1/3 the frequency
+    /// of the internal operations.
+    ///
+    /// frequencyHz is the desired full cycle rate on the clock pin.
+    func setClock(frequencyHz: Int, forThreePhase: Bool = false) {
+        let timedActionsPerCycle = forThreePhase ? 3 : 2
+
         // FIXME: only low speed implemented currently
-        let busClock = 6_000_000
-        let divisor = (busClock + frequencyHz)/(2 * frequencyHz) - 1
+        let internalClock = 12_000_000
+
+        /// AN 135 3.2.1
+        let divisor = internalClock / (timedActionsPerCycle * frequencyHz) - 1
+
         let divisorSetting = UInt16(clamping: divisor)
-        
-        let argument = withUnsafeBytes(of: divisorSetting) {Data($0)}
+        let argument = withUnsafeBytes(of: divisorSetting.littleEndian) {Data($0)}
         
         callMPSSE(command: .setTCKDivisor, arguments: argument)
     }
@@ -179,7 +194,12 @@ public class Ftdi {
         callMPSSE(command: .disableAdaptiveClocking, arguments: Data())
     }
     
-    // data after both rising and falling edges
+    /// Sustain data through clock phase.
+    ///
+    /// Behavior of the "3-phase" clock: set up data for 1/3 cycle; change
+    /// clock for 1/3 cycle; return clock to starting for 1/3 cycle.
+    /// Full cycle takes three triggers of the internal clock used for state transitions, so
+    /// the setClock frequency needs to be adjusted appropriately.
     func enableThreePhaseClock() {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
     }
@@ -199,6 +219,10 @@ public class Ftdi {
     ///
     /// Put data onto the I2C SDA pin, with one bit per clock cycle.
     /// If the clock is in the specified state, then assert SDA for one clock cycle. If the clock is not in the specified starting state, then set it to starting state and assert SDA; hold SDA for clock cycle.
+    ///
+    /// For the "3-phase" clock: set up data for 1/3 cycle; change
+    /// clock for 1/3 cycle; return clock to starting for 1/3 cycle.
+    // FIXME: adjust "startingWithClockAt" to accomodate both 2-phase edge semantics and 3-phase hold semantics. "throughClockTransitionTo"?
     public func write(data: Data, startingWithClockAt: Voltage, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
