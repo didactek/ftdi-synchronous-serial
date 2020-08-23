@@ -6,7 +6,10 @@
 //
 
 import Foundation
+import Logging
 import LibUSB
+
+var logger = Logger(label: "com.didactek.libusb.ftdi-core")
 
 public class Ftdi {
     let device: USBDevice
@@ -15,6 +18,7 @@ public class Ftdi {
     public init() throws {
         let usbSubsystem = USBBus()
         device = try usbSubsystem.findDevice()
+        logger.logLevel = .trace
     }
 
     
@@ -127,7 +131,7 @@ public class Ftdi {
     func checkMPSSEResult() {
         // FIXME: some commands return information (like 'getBits*')
         let resultMessage = device.bulkTransferIn()
-        print("checkMPSSEResult read returned:", resultMessage.map { String($0, radix: 16)})
+        logger.trace("checkMPSSEResult read returned: \(resultMessage.map { String($0, radix: 16)})")
         guard resultMessage.count >= 2 else {
             fatalError("no MPSSE response found")
         }
@@ -151,7 +155,7 @@ public class Ftdi {
         let badOpcode = MpsseCommand.bogus.rawValue
         device.bulkTransferOut(msg: Data([badOpcode]))
         let resultMessage = device.bulkTransferIn()
-        print("confirmMPSSEModeEnabled read returned:", resultMessage.map { String($0, radix: 16)})
+        logger.trace("confirmMPSSEModeEnabled read returned: \(resultMessage.map { String($0, radix: 16)})")
         guard resultMessage.count >= 4 else {
             fatalError("results should have been available")
         }
@@ -179,6 +183,7 @@ public class Ftdi {
         let timedActionsPerCycle = forThreePhase ? 3 : 2
 
         // FIXME: only low speed implemented currently
+        // FIXME: explicitly enabling/disabling divide-by-5 is recommended.
         let internalClock = 12_000_000
 
         /// AN 135 3.2.1
