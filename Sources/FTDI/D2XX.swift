@@ -41,7 +41,7 @@ extension Ftdi {
         case setFlowControl = 0x2  // Set flow control register
         case setBaudrate = 0x3  // Set baud rate
         case setData = 0x4  // Set the data characteristics of the port
-        case pollModemLineStatus = 0x5  // Get line status
+        case getModemStatus = 0x5  // Get line status
         case setEventChar = 0x6  // Change event character
         case setErrorChar = 0x7  // Change error character
         case setLatencyTimer = 0x9  // Change latency timer
@@ -49,6 +49,10 @@ extension Ftdi {
         case setBitmode = 0xb  // Change bit mode
         case getBitmode = 0xc  // Read GPIO pin configuration
     }
+
+    // FIXME: not provided by ftdi and possibly needed:
+    // getQueueStatus
+    // resetPort
 
     func setLatency(mSec: UInt16) {
         controlTransferOut(bRequest: .setLatencyTimer, value: mSec, data: Data())
