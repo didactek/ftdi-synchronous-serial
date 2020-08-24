@@ -40,6 +40,7 @@ public class FtdiSPI: Ftdi {
         // Reset peripheral side
         //  rx buf purged
         //  bitmode: RESET
+// FIXME: this is not a FT_ResetDevice, but a MPSSE controller reset, which is different
         setBitmode(.reset)
         // Configure USB transfer sizes
         // Set event/error characters
