@@ -147,7 +147,10 @@ public class Ftdi {
     }
     
     func confirmMPSSEModeEnabled() {
-        // FIXME: these flushes are necessary at this point; not sure where accumulated results come from
+        // FIXME: these flushes are necessary at this point; not sure where accumulated results come from.
+        // Three reads seem to be required; more are OK.
+        // Thread.sleep(until: Date(timeIntervalSinceNow: 0.100)) or its equivalent to stabilize results does
+        // not seem to make any kind of difference.
         checkMPSSEResult()
         checkMPSSEResult()
         checkMPSSEResult()
