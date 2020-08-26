@@ -214,14 +214,13 @@ public class FtdiI2C: Ftdi {
         write(bits: 8, ofDatum: byte, during: .highClock)
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
 
-        // FIXME: capture this bit and create a future that asserts it was ACK'd
-        let _ = read(bits: 1, during: .highClock)
-        //        let ack = read(bits: 1, during: .highClock)
-        // FIXME: sendImmediate covered by read?
-        //        guard ack == 0 else {
-        //            // FIXME: throw is better for dynamic errors
-        //            fatalError("failed to get ACK writing byte")
-        //        }
+        let _ = read(bits: 1, during: .highClock) { bitData in
+            // FIXME: make more clear that this is a callback and might be run later?
+            guard bitData[0] == 0 else {
+                // FIXME: throw is better for dynamic errors
+                fatalError("failed to get ACK writing byte")
+            }
+        }
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
@@ -240,7 +239,7 @@ public class FtdiI2C: Ftdi {
         }
         let response: Acknowledgment = last ? .nack : .ack
 
-        let replyIndex = read(bits: 8, during: .highClock)
+        let promisedResponse = read(bits: 8, during: .highClock)
         write(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
         hold600ns {  // FIXME: this seems spurious given the clocked write of the (n)ack.
@@ -248,7 +247,7 @@ public class FtdiI2C: Ftdi {
         }
 
         flushCommandQueue()
-        return replyIndex.value[0]
+        return promisedResponse.value[0]
     }
 
     //========================
@@ -277,7 +276,7 @@ public class FtdiI2C: Ftdi {
         }
     }
 
-    func read(address: UInt8, count: Int) -> Data{
+    func read(address: UInt8, count: Int) -> Data {
         guard count > 0 else {
             fatalError("read request must be for at least one byte")
         }

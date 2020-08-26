@@ -16,9 +16,11 @@ var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
 public class PromisedReadReply {
     let expectedCount: Int
     var writeOnceValue: Data? = nil
+    let fulfillCallback: ((Data) -> Void)?
 
-    init(ofCount: Int) {
+    init(ofCount: Int, onFulfill: ((Data) -> Void)? = nil) {
         expectedCount = ofCount
+        fulfillCallback = onFulfill
     }
 
     var value: Data {
@@ -33,6 +35,10 @@ public class PromisedReadReply {
             fatalError("Promise already fulfilled")
         }
         self.writeOnceValue = value
+
+        if let callback = fulfillCallback {
+            callback(value)
+        }
     }
 }
 
@@ -156,11 +162,11 @@ public class Ftdi {
         checkMPSSEResult()
     }
 
-    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int) -> PromisedReadReply {
+    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
         commandQueue.append(command.rawValue)
         commandQueue.append(arguments)
 
-        let promise = PromisedReadReply(ofCount: expectingReplyCount)
+        let promise = PromisedReadReply(ofCount: expectingReplyCount, onFulfill: promiseCallback)
         expectedResultCounts.append(promise)
         return promise
     }
@@ -366,7 +372,7 @@ public class Ftdi {
 
     // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
     /// returns: queued reply index for future dereference.
-    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb) -> PromisedReadReply {
+    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -396,7 +402,7 @@ public class Ftdi {
 
         let sizeSpec = UInt8(bits - 1)
 
-        return queueMPSSE(command: command, arguments: Data([sizeSpec]), expectingReplyCount: 1)
+        return queueMPSSE(command: command, arguments: Data([sizeSpec]), expectingReplyCount: 1, promiseCallback: promiseCallback)
     }
 
     enum GpioBlock {
