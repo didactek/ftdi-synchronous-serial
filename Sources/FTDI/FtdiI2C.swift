@@ -213,12 +213,15 @@ public class FtdiI2C: Ftdi {
         // thus fulfilling the spec.
         write(bits: 8, ofDatum: byte, during: .highClock)
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
-        let ack = read(bits: 1, during: .highClock)
+
+        // FIXME: capture this bit and create a future that asserts it was ACK'd
+        let _ = read(bits: 1, during: .highClock)
+        //        let ack = read(bits: 1, during: .highClock)
         // FIXME: sendImmediate covered by read?
-        guard ack == 0 else {
-            // FIXME: throw is better for dynamic errors
-            fatalError("failed to get ACK writing byte")
-        }
+        //        guard ack == 0 else {
+        //            // FIXME: throw is better for dynamic errors
+        //            fatalError("failed to get ACK writing byte")
+        //        }
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
@@ -244,8 +247,8 @@ public class FtdiI2C: Ftdi {
             queueI2CBus(state: .clockLow)
         }
 
-        let replies = flushCommandQueue()
-        return replies[replyIndex][0]
+        flushCommandQueue()
+        return replyIndex.value[0]
     }
 
     //========================
