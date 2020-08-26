@@ -60,7 +60,8 @@ public class FtdiI2C: Ftdi {
         confirmMPSSEModeEnabled()
         configureMPSSEForI2C(mode: .standard)
 
-        setI2CBus(state: .idle)
+        queueI2CBus(state: .idle)
+        let _ = flushCommandQueue()
     }
 
     deinit {
@@ -98,6 +99,7 @@ public class FtdiI2C: Ftdi {
         disableAdaptiveClock()
         setClock(frequencyHz: mode.clockSpeed(), forThreePhase: true)
         enableThreePhaseClock()
+
     }
 
     //========================
@@ -125,7 +127,7 @@ public class FtdiI2C: Ftdi {
     /// This function does not provide any delay required to hold the lines
     /// for a clock cycle or stabilization period. If needed, timing should be provided by callers, as by the idle prologue in
     /// sendStart and again(?!) by the idle epilogue in sendStop.
-    func setI2CBus(sda: TristateOutput, clock: TristateOutput) {
+    func queueI2CBus(sda: TristateOutput, clock: TristateOutput) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
         var floatingPins = I2CHardwarePins()
         if sda == .float {
@@ -135,7 +137,7 @@ public class FtdiI2C: Ftdi {
             floatingPins.insert(.clock)
         }
 
-        setDataBits(values: floatingPins.rawValue,
+        queueDataBits(values: floatingPins.rawValue,
                     outputMask: I2CHardwarePins.outputs.rawValue,
                     pins: .lowBytes)
     }
@@ -162,9 +164,9 @@ public class FtdiI2C: Ftdi {
     }
 
     // Set the bus to a standard state.
-    func setI2CBus(state: NamedBusState) {
+    func queueI2CBus(state: NamedBusState) {
         let pins = state.values
-        setI2CBus(sda: pins.sda, clock: pins.clock)
+        queueI2CBus(sda: pins.sda, clock: pins.clock)
     }
 
 
@@ -174,12 +176,13 @@ public class FtdiI2C: Ftdi {
     /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
     func sendStart() {
         hold600ns {
-            setI2CBus(state: .idle)
+            queueI2CBus(state: .idle)
         }
         hold600ns {
-            setI2CBus(sda: .zero, clock: .float)  // "reserveOrRelease"
+            queueI2CBus(sda: .zero, clock: .float)  // "reserveOrRelease"
         }
-        setI2CBus(sda: .zero, clock: .zero)  // FIXME: .clockLow might be both functionally equivalent and more clear?
+        queueI2CBus(sda: .zero, clock: .zero)  // FIXME: .clockLow might be both functionally equivalent and more clear?
+        let _ = flushCommandQueue()
     }
 
     /// Signal the end of communications on a bus.
@@ -188,11 +191,12 @@ public class FtdiI2C: Ftdi {
     /// (Pins will remain high until a new conversation is started.)
     func sendStop() {
         hold600ns {
-            setI2CBus(sda: .zero, clock: .float)
+            queueI2CBus(sda: .zero, clock: .float)
         }
         hold600ns {
-            setI2CBus(state: .idle)
+            queueI2CBus(state: .idle)
         }
+        let _ = flushCommandQueue()
     }
 
     /// Write a byte and check its ACK
@@ -208,14 +212,14 @@ public class FtdiI2C: Ftdi {
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
         write(bits: 8, ofDatum: byte, during: .highClock)
-        setI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
+        queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
         let ack = read(bits: 1, during: .highClock)
         // FIXME: sendImmediate covered by read?
         guard ack == 0 else {
             // FIXME: throw is better for dynamic errors
             fatalError("failed to get ACK writing byte")
         }
-        setI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
+        queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
     /// Read a byte on the bus and respond in ACK time slot.
@@ -233,14 +237,15 @@ public class FtdiI2C: Ftdi {
         }
         let response: Acknowledgment = last ? .nack : .ack
 
-        let datum = read(bits: 8, during: .highClock)
+        let replyIndex = read(bits: 8, during: .highClock)
         write(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
         hold600ns {  // FIXME: this seems spurious given the clocked write of the (n)ack.
-            setI2CBus(state: .clockLow)
+            queueI2CBus(state: .clockLow)
         }
 
-        return datum
+        let replies = flushCommandQueue()
+        return replies[replyIndex][0]
     }
 
     //========================
