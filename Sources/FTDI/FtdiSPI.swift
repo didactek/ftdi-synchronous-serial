@@ -57,7 +57,7 @@ public class FtdiSPI: Ftdi {
     
     
     func initializePinState() {
-        setDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
+        let _ = queueDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
     }
     
     
@@ -67,6 +67,7 @@ public class FtdiSPI: Ftdi {
         setClock(frequencyHz: frequencyHz)
         // pin directions
         initializePinState()
+        let _ = flushCommandQueue()
     }
     
     public func write(data: Data) {
