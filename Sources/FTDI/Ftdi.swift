@@ -11,10 +11,34 @@ import LibUSB
 
 var logger = Logger(label: "com.didactek.libusb.ftdi-core")
 
+public class PromisedReadReply {
+    let expectedCount: Int
+    var writeOnceValue: Data? = nil
+    
+    init(ofCount: Int) {
+        expectedCount = ofCount
+    }
+    
+    var value: Data {
+        guard let value = writeOnceValue else {
+            fatalError("Promised value used before commands flushed to device")
+        }
+        return value
+    }
+    
+    func fulfill(value: Data) {
+        guard self.writeOnceValue == nil else {
+            fatalError("Promise already fulfilled")
+        }
+        self.writeOnceValue = value
+    }
+}
+
 public class Ftdi {
     let device: USBDevice
+    
     var commandQueue = Data()
-    var expectedResultCounts: [Int] = []
+    var expectedResultCounts: [PromisedReadReply] = []
 
     
     public init() throws {
@@ -130,11 +154,17 @@ public class Ftdi {
         checkMPSSEResult()
     }
     
-    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int = 0) -> Int {
+    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int) -> PromisedReadReply {
         commandQueue.append(command.rawValue)
         commandQueue.append(arguments)
-        expectedResultCounts.append(expectingReplyCount)
-        return expectedResultCounts.count - 1
+        
+        let promise = PromisedReadReply(ofCount: expectingReplyCount)
+        expectedResultCounts.append(promise)
+        return promise
+    }
+    
+    private func queueMPSSE(command: MpsseCommand, arguments: Data) {
+        let _ = queueMPSSE(command: command, arguments: arguments, expectingReplyCount: 0)
     }
     
     func pretty(_ data: Data) -> String {
@@ -142,13 +172,12 @@ public class Ftdi {
         return data.prefix(maxLength).map { "0x" + String($0, radix: 16)}.joined(separator: " ") + (data.count > maxLength ? "..." : "")
     }
     
-    func flushCommandQueue() -> [Data] {
-        let _ = queueMPSSE(command: .sendImmediate, arguments: Data())
+    func flushCommandQueue() {
+        queueMPSSE(command: .sendImmediate, arguments: Data())
         device.bulkTransferOut(msg: commandQueue)
         commandQueue.removeAll()
 
         var retries = 7
-        var result: [Data] = []
         var beingAssembled = Data()
 
         while !expectedResultCounts.isEmpty && retries > 0 {
@@ -164,10 +193,10 @@ public class Ftdi {
                 beingAssembled.append(newBytesRead.advanced(by: 2))
             }
 
-            while let needed = expectedResultCounts.first, needed <= beingAssembled.count {
-                result.append(beingAssembled.prefix(needed))
+            while let needed = expectedResultCounts.first, needed.expectedCount <= beingAssembled.count {
+                needed.fulfill(value: beingAssembled.prefix(needed.expectedCount))
                 let _ = expectedResultCounts.removeFirst()
-                beingAssembled.removeFirst(needed)
+                beingAssembled.removeFirst(needed.expectedCount)
             }
         }
         guard expectedResultCounts.isEmpty else {
@@ -176,7 +205,6 @@ public class Ftdi {
         guard beingAssembled.isEmpty else {
             fatalError("failed to consume all replies; outstanding: \(pretty(beingAssembled))")
         }
-        return result
     }
     
     func checkMPSSEResult() {
@@ -198,40 +226,12 @@ public class Ftdi {
     }
     
     func confirmMPSSEModeEnabled() {
-        #if true
-        let replyIndex = queueMPSSE(command: .bogus, arguments: Data(), expectingReplyCount: 2)
-        let replies = flushCommandQueue()
+        let bogusReply = queueMPSSE(command: .bogus, arguments: Data(), expectingReplyCount: 2)
+        flushCommandQueue()
         
-        let bogusReply = replies[replyIndex]
-        
-        guard bogusReply == Data([0xfa, MpsseCommand.bogus.rawValue]) else {
-            fatalError("expected \"bad opcode\" in \(pretty(bogusReply))")
+        guard bogusReply.value == Data([0xfa, MpsseCommand.bogus.rawValue]) else {
+            fatalError("expected \"bad opcode\" in \(pretty(bogusReply.value))")
         }
-        #else
-        // FIXME: these flushes are necessary at this point; not sure where accumulated results come from.
-        // Three reads seem to be required; more are OK.
-        // Thread.sleep(until: Date(timeIntervalSinceNow: 0.100)) or its equivalent to stabilize results does
-        // not seem to make any kind of difference.
-        Thread.sleep(until: Date(timeIntervalSinceNow: 0.100))
-        checkMPSSEResult()
-        checkMPSSEResult()
-        checkMPSSEResult()
-        
-        let badOpcode = MpsseCommand.bogus.rawValue
-        device.bulkTransferOut(msg: Data([badOpcode]))
-        let resultMessage = device.bulkTransferIn()
-        logger.trace("confirmMPSSEModeEnabled read returned: \(pretty(resultMessage))")
-        guard resultMessage.count >= 4 else {
-            fatalError("results should have been available")
-        }
-        // first two bytes are hex 32,60
-        guard resultMessage[2] == 0xfa else {
-            fatalError("MPSSE mode should have returned \"bad opcode\" result (0xfa)")
-        }
-        guard resultMessage[3] == badOpcode else {
-            fatalError("MPSSE should have explained the bad opcode")
-        }
-        #endif
     }
 
     /// Set the clock output frequency.
@@ -325,7 +325,7 @@ public class Ftdi {
         let sizeSpec = UInt16(data.count - 1)
         let sizePrologue = withUnsafeBytes(of: sizeSpec.littleEndian) { Data($0) }
         
-        let _ = queueMPSSE(command: command, arguments: sizePrologue + data)
+        queueMPSSE(command: command, arguments: sizePrologue + data)
     }
     
     public func write(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
@@ -358,13 +358,13 @@ public class Ftdi {
 
         let sizeSpec = UInt8(bits - 1)
         
-        let _ = queueMPSSE(command: command, arguments: Data([sizeSpec, ofDatum]))
+        queueMPSSE(command: command, arguments: Data([sizeSpec, ofDatum]))
     }
     
     
     // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
     /// returns: queued reply index for future dereference.
-    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb) -> Int {
+    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb) -> PromisedReadReply {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -394,7 +394,7 @@ public class Ftdi {
 
         let sizeSpec = UInt8(bits - 1)
         
-        return queueMPSSE(command: command, arguments: Data([sizeSpec]))
+        return queueMPSSE(command: command, arguments: Data([sizeSpec]), expectingReplyCount: 1)
     }
     
     enum GpioBlock {
@@ -425,7 +425,7 @@ public class Ftdi {
     func queueDataBits(values: UInt8, outputMask: UInt8, pins: GpioBlock) {
         let cmd = pins.cmdSetBits()
         let pinSpec = Data([values, outputMask])
-        let _ = queueMPSSE(command: cmd, arguments: pinSpec)
+        queueMPSSE(command: cmd, arguments: pinSpec)
     }
 
     /// Allow output pins to float on '1' (to be pulled up by bus or sunk down by other devices)
