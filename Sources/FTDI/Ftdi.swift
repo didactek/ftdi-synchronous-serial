@@ -182,7 +182,7 @@ public class Ftdi {
         device.bulkTransferOut(msg: commandQueue)
         commandQueue.removeAll()
 
-        var retries = 7
+        var retries = 7  // FIXME: "7" was chosen at random
         var beingAssembled = Data()
 
         while !expectedResultCounts.isEmpty && retries > 0 {
@@ -274,20 +274,23 @@ public class Ftdi {
     }
     
     
-    /// Write data.
+    /// Write bytes in coordination with changing  the clock.
     ///
-    /// Put data onto the I2C SDA pin, with one bit per clock cycle.
-    /// If the clock is in the specified state, then assert SDA for one clock cycle. If the clock is not in the specified starting state, then set it to starting state and assert SDA; hold SDA for clock cycle.
+    /// Put one bit per clock cycle onto the dataOut pin, while operating the clock at its configured frequency.
     ///
-    /// For the "3-phase" clock: set up data for 1/3 cycle; change
-    /// clock for 1/3 cycle; return clock to starting for 1/3 cycle.
-    public func write(data: Data, during window: DataWindow, bitOrder: BitOrder = .msb) {
+    /// Data is guaranteed valid  during the specified window: It is set up ahead of time and
+    /// maintained until the window has closed. See enableThreePhaseClock
+    /// for semantics of a .clockHigh window.
+    ///
+    /// The clock pin is not immediately set by this function on entry, but instead must already be
+    /// at the appropriate value for the starting phase. The clock will be XORd twice, so it will end in the same state it started.
+    public func writeWithClock(data: Data, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
 
         let command: MpsseCommand
-        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+
         switch bitOrder {
         case .msb:
             switch window {
@@ -314,14 +317,24 @@ public class Ftdi {
         
         queueMPSSE(command: command, arguments: sizePrologue + data)
     }
-    
+
+    /// Write 1-8 bits in coordination with changing  the clock.
+    ///
+    /// Put one bit per clock cycle onto the dataOut pin, while operating the clock at its configured frequency.
+    ///
+    /// Data is guaranteed valid  during the specified window: It is set up ahead of time and
+    /// maintained until the window has closed. See enableThreePhaseClock
+    /// for semantics of a .clockHigh window.
+    ///
+    /// The clock pin is not immediately set by this function on entry, but instead must already be
+    /// at the appropriate value for the starting phase. The clock will be XORd twice, so it will end in the same state it started.
     public func write(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
 
         let command: MpsseCommand
-        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+        
         switch bitOrder {
         case .msb:
             switch window {
@@ -357,7 +370,7 @@ public class Ftdi {
         }
 
         let command: MpsseCommand
-        // FIXME: it might be possible to make this table from raw values and the semantics in Table 3.2?
+
         switch bitOrder {
         case .msb:
             switch window {
@@ -425,6 +438,4 @@ public class Ftdi {
         let pinSpec = Data([lowMask, highMask])
         callMPSSE(command: .onlyDriveZero, arguments: pinSpec)
     }
-
-    
 }
