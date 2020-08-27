@@ -11,7 +11,7 @@ import LibUSB
 
 var logger = Logger(label: "com.didactek.libusb.ftdi-core")
 
-public class PromisedReadReply {
+public class CommandResponsePromise {
     let expectedCount: Int
     var writeOnceValue: Data? = nil
     let fulfillCallback: ((Data) -> Void)?
@@ -40,11 +40,18 @@ public class PromisedReadReply {
     }
 }
 
+/// Represent an FTDI FT232H operating in MPSSE mode, connected to host via USB.
+///
+/// The FT232H has 16 general purpose I/O pins (GPIO) that can be configured for input or output.
+/// It also has an onboard clock and associated built-in logic for using three pins (clock, dataIn, and dataOut)
+/// for clocked serial communications. In serial clocking mode, the remaining pins can be used for GPIO.
+/// Protocols that require "chip select" or other signals can be implemented by allocating pins for these
+/// functions and managing the pin state explicitly.
 public class Ftdi {
     let device: USBDevice
     
     var commandQueue = Data()
-    var expectedResultCounts: [PromisedReadReply] = []
+    var expectedResultCounts: [CommandResponsePromise] = []
 
     
     public init() throws {
@@ -161,11 +168,11 @@ public class Ftdi {
         device.bulkTransferOut(msg: cmd)
     }
     
-    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
+    private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
         commandQueue.append(command.rawValue)
         commandQueue.append(arguments)
         
-        let promise = PromisedReadReply(ofCount: expectingReplyCount, onFulfill: promiseCallback)
+        let promise = CommandResponsePromise(ofCount: expectingReplyCount, onFulfill: promiseCallback)
         expectedResultCounts.append(promise)
         return promise
     }
@@ -179,6 +186,7 @@ public class Ftdi {
         return data.prefix(maxLength).map { "0x" + String($0, radix: 16)}.joined(separator: " ") + (data.count > maxLength ? "..." : "")
     }
     
+    /// Send all enqueued commands and attempt to fulfill associated promises.
     func flushCommandQueue() {
         queueMPSSE(command: .sendImmediate, arguments: Data())
         device.bulkTransferOut(msg: commandQueue)
@@ -214,7 +222,13 @@ public class Ftdi {
         }
     }
     
+    /// Assert we are in MPSSE mode.
+    ///
+    /// Sends a command that provides a positive response but does not change configuration
+    /// or exchange data.
+    /// Calls fatalError if MPSSE mode appears not to be set.
     func confirmMPSSEModeEnabled() {
+        // per AN_135; should provoke "0xFA Bad Command" response
         let bogusReply = queueMPSSE(command: .bogus, arguments: Data(), expectingReplyCount: 2)
         flushCommandQueue()
         
@@ -328,9 +342,10 @@ public class Ftdi {
         queueMPSSE(command: command, arguments: sizePrologue + data)
     }
 
-    /// Write 1-8 bits in coordination with changing  the clock.
+    /// Write of 1-8 bits in coordination with changing  the clock. Command is queued.
     ///
-    /// Put one bit per clock cycle onto the dataOut pin, while operating the clock at its configured frequency.
+    /// When command queue is flushed: put one bit per clock cycle onto the dataOut pin
+    /// while operating the clock at its configured frequency.
     ///
     /// Data is guaranteed valid  during the specified window: It is set up ahead of time and
     /// maintained until the window has closed. See enableThreePhaseClock
@@ -372,15 +387,16 @@ public class Ftdi {
     }
     
     
-    /// Cycle the clock 1-8 times, reading bits during the specificed clock phase.
+    /// Cycle the clock 1-8 times, reading bits during the specificed clock phase. Command is queued.
+    ///
+    /// Returns: promise of read data that will be fullfilled when flushCommandQueue assembles results.
     ///
     /// If provided, the callback is attached to the promise, allowing things
     /// like checking ACK to be performed while the response is being decoded.
     ///
-    /// Returns: promise of read data that will be fullfilled when flushCommandQueue assebles results.
-    ///
-    /// Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
-    public func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
+    /// Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB
+    /// and shifted on each entry. May require shift of (8 minus 'bits') to place into low bits.
+    public func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
