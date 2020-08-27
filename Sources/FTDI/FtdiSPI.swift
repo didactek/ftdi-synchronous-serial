@@ -66,7 +66,7 @@ public class FtdiSPI: Ftdi {
     /// AN_135_MPSSE_Basics lifetime: 4.3 Configure MPSSE
     func configureMPSSEForSPI(frequencyHz: Int) {
         // Clock speed
-        setClock(frequencyHz: frequencyHz)
+        configureClocking(frequencyHz: frequencyHz)
         // pin directions
         initializePinState()
         flushCommandQueue()

@@ -97,7 +97,7 @@ public class FtdiI2C: Ftdi {
 
         // Clock
         disableAdaptiveClock()
-        setClock(frequencyHz: mode.clockSpeed(), forThreePhase: true)
+        configureClocking(frequencyHz: mode.clockSpeed(), forThreePhase: true)
         enableThreePhaseClock()
 
     }
@@ -211,16 +211,16 @@ public class FtdiI2C: Ftdi {
         // has oscilloscope example of 0x10: byte out using MSB/rising
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
-        write(bits: 8, ofDatum: byte, during: .highClock)
+        writeWithClock(bits: 8, ofDatum: byte, during: .highClock)
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
 
-        let _ = read(bits: 1, during: .highClock) { bitData in
-            // FIXME: make more clear that this is a callback and might be run later?
-            guard bitData[0] == 0 else {
+        let _ = readWithClock(bits: 1, during: .highClock, promiseCallback:
+        { ackBit in
+            guard ackBit[0] == 0 else {
                 // FIXME: throw is better for dynamic errors
                 fatalError("failed to get ACK writing byte")
             }
-        }
+        })
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
@@ -239,8 +239,8 @@ public class FtdiI2C: Ftdi {
         }
         let response: Acknowledgment = last ? .nack : .ack
 
-        let promisedResponse = read(bits: 8, during: .highClock)
-        write(bits: 1, ofDatum: response.rawValue, during: .highClock)
+        let promisedResponse = readWithClock(bits: 8, during: .highClock)
+        writeWithClock(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
         hold600ns {  // FIXME: this seems spurious given the clocked write of the (n)ack.
             queueI2CBus(state: .clockLow)

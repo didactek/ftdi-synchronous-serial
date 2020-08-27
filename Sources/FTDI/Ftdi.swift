@@ -144,10 +144,12 @@ public class Ftdi {
         // 5 Instruction release/flow control
 
         // 5.1 Send Immediate
-        case sendImmediate = 0x87  // Flush; request immediate response
+        /// Flush; request immediate response
+        case sendImmediate = 0x87
 
         // 7.1 Drive on '0'; Tristate on '1'
-        case onlyDriveZero = 0x9e  // Set output pins to float on '1' (I2C)
+        /// Set output pins to float on '1' (I2C)
+        case onlyDriveZero = 0x9e
 
         case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
 
@@ -225,16 +227,19 @@ public class Ftdi {
 
     /// Set the clock output frequency.
     ///
+    /// frequencyHz is the desired full cycle rate on the clock pin.
+    ///
     /// This sets up an internal clock that triggers each pin change managed by the
-    /// clock circuitry. To drive a simple square wave, two triggers are needed per cycle:
+    /// data clocking logic. To drive a simple square wave, two triggers are needed per cycle:
     /// one for each XOR of the clock.
     ///
     /// For the three-phase clock, three state changes are required,
     /// so the effective frequency on the clocked pin is 1/3 the frequency
     /// of the internal operations.
     ///
-    /// frequencyHz is the desired full cycle rate on the clock pin.
-    func setClock(frequencyHz: Int, forThreePhase: Bool = false) {
+    /// Note: Configuring the clock does not immediately affect the clock pin; the clock pin is automatically
+    /// cycled only during data clocking commands.
+    func configureClocking(frequencyHz: Int, forThreePhase: Bool = false) {
         let timedActionsPerCycle = forThreePhase ? 3 : 2
 
         // FIXME: only low speed implemented currently
@@ -254,7 +259,7 @@ public class Ftdi {
         callMPSSE(command: .disableAdaptiveClocking, arguments: Data())
     }
 
-    /// Sustain data through clock phase.
+    /// Sustain data through a clock high or low phase instead of during a transition.
     ///
     /// Behavior of the "3-phase" clock: set up data for 1/3 cycle; change
     /// clock for 1/3 cycle; return clock to starting for 1/3 cycle.
@@ -265,14 +270,19 @@ public class Ftdi {
     }
 
     public enum DataWindow {
-        case risingEdge // +ve; rising/high
-        case fallingEdge // -ve; falling/low
-        case highClock // 3-phase clock, data valid when clock high
+        /// transition to +ve; rising edge
+        case risingEdge
+        /// transition to -ve; falling edge
+        case fallingEdge
+        /// while clock is high (requires 3-phase clock)
+        case highClock
     }
 
     public enum BitOrder {
-        case msb // most-significant bit first
-        case lsb // least-significant bit first
+        /// most-significant bit first
+        case msb
+        /// least-significant bit first
+        case lsb
     }
 
 
@@ -330,7 +340,7 @@ public class Ftdi {
     ///
     /// The clock pin is not immediately set by this function on entry, but instead must already be
     /// at the appropriate value for the starting phase. The clock will be XORd twice, so it will end in the same state it started.
-    public func write(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
+    public func writeWithClock(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -364,9 +374,15 @@ public class Ftdi {
     }
 
 
-    // Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
-    /// returns: queued reply index for future dereference.
-    public func read(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
+    /// Cycle the clock 1-8 times, reading bits during the specificed clock phase.
+    ///
+    /// If provided, the callback is attached to the promise, allowing things
+    /// like checking ACK to be performed while the response is being decoded.
+    ///
+    /// Returns: promise of read data that will be fullfilled when flushCommandQueue assebles results.
+    ///
+    /// Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB and shifted on each entry. May require shift 8-bits to place into low bits.
+    public func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
