@@ -159,7 +159,6 @@ public class Ftdi {
     private func callMPSSE(command: MpsseCommand, arguments: Data) {
         let cmd = Data([command.rawValue]) + arguments
         device.bulkTransferOut(msg: cmd)
-        checkMPSSEResult()
     }
 
     private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> PromisedReadReply {
@@ -212,24 +211,6 @@ public class Ftdi {
         }
         guard beingAssembled.isEmpty else {
             fatalError("failed to consume all replies; outstanding: \(pretty(beingAssembled))")
-        }
-    }
-
-    func checkMPSSEResult() {
-        // FIXME: some commands return information (like 'getBits*')
-        let resultMessage = device.bulkTransferIn()
-        logger.trace("checkMPSSEResult read returned: \(pretty(resultMessage))")
-        guard resultMessage.count >= 2 else {
-            fatalError("no MPSSE response found")
-        }
-        guard resultMessage[0] == 0x32 else {
-            fatalError("MPSSE first byte of reply marker")
-        }
-        guard resultMessage[1] ==  0x60 else {
-            fatalError("MPSSE results should be two-byte block")
-        }
-        guard resultMessage.count == 2 else {
-            fatalError("MPSSE results included error report")
         }
     }
 
