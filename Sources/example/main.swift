@@ -11,10 +11,6 @@ import Foundation
 import LibUSB
 import FTDI
 
-#if false
-exerciseC()
-#endif
-
 do { // hoping block scope triggers FtdiSPI.deinit
     #if false
     let bus = try! FtdiSPI(speedHz: 1_000_000)
