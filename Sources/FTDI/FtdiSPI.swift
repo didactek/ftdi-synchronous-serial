@@ -7,32 +7,63 @@
 
 import Foundation
 
-
+/// Use an FTDI FT232H to communicate with devices using SPI (Serial Peripheral Interface).
+///
+///References:
+/// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
 public class FtdiSPI: Ftdi {
+    
+    /// Enumerates the supported modes and provides
+    enum ClockSemantics {
+        case mode0
+        #if false  // remainder not currently implemented
+        case mode1
+        case mode2
+        case mode3
+        #endif
+
+        /// the edge when writing data must be valid
+        var writeWindow: DataWindow {
+            switch self {
+            case .mode0:
+                return .fallingEdge
+            }
+        }
+        
+        /// clock and dataOut values for an idle bus.
+        /// (as a bit field)
+        var busAtIdle: UInt8 {
+            switch self {
+            case .mode0:
+                return 0
+            }
+        }
+    }
+    
+    let mode: ClockSemantics
+
     public init(speedHz: Int) throws {
-        // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
+        mode = .mode0
         try super.init()
 
-        configureMPSSEForSPI(frequencyHz: speedHz)
-        // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
-    }
-    
-     
-    func initializePinState() {
-        queueDataBits(values: 0, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
-    }
-    
-    
-    /// AN_135_MPSSE_Basics lifetime: 4.3 Configure MPSSE
-    func configureMPSSEForSPI(frequencyHz: Int) {
-        // Clock speed
-        configureClocking(frequencyHz: frequencyHz)
-        // pin directions
-        initializePinState()
+        configureClocking(frequencyHz: speedHz)
+
+        setSPIIdle()
         flushCommandQueue()
     }
     
+
+    /// Queue commands to set the SPI bus to its idle state.
+    ///
+    /// Idle is data and clock pins low.
+    func setSPIIdle() {
+        queueDataBits(values: mode.busAtIdle, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
+    }
+    
+    /// Push data to the SPI bus.
+    ///
+    /// Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
     public func write(data: Data) {
-        writeWithClock(data: data, during: .fallingEdge)
+        writeWithClock(data: data, during: mode.writeWindow)
     }
 }
