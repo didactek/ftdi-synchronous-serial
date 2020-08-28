@@ -19,9 +19,6 @@ let package = Package(
         .library(
             name: "CLibUSB",
             targets: ["CLibUSB"]),
-        .library(
-            name: "CInterop",
-            targets: ["CInterop"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -32,13 +29,10 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "example",
-            dependencies: ["FTDI", "CInterop"]),
+            dependencies: ["FTDI"]),
         .target(
             name: "LibUSB",
             dependencies: ["CLibUSB", .product(name: "Logging", package: "swift-log")]),
-        .target(
-            name: "CInterop",
-            dependencies: []),
         .target(
             name: "FTDI",
             dependencies: ["LibUSB"]),
