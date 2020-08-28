@@ -22,17 +22,6 @@ public class FtdiSPI: Ftdi {
         endMPSSE()
     }
 
-    struct SpiHardwarePins: OptionSet {
-        let rawValue: UInt8
-        
-        static let clock   = SpiHardwarePins(rawValue: 1 << 0)
-        static let dataOut = SpiHardwarePins(rawValue: 1 << 1)
-        static let dataIn  = SpiHardwarePins(rawValue: 1 << 2)
-        
-        static let outputs: SpiHardwarePins = [.clock, .dataOut]
-        static let inputs: SpiHardwarePins = [.dataIn]
-    }
-
     /// AN_135_MPSSE_Basics lifetime: 4.2 Configure FTDI Port For MPSSE Use
     func configurePorts() {
         // Reset peripheral side
@@ -52,12 +41,12 @@ public class FtdiSPI: Ftdi {
         //  rx buf purged
         // Enable MPSSE controller
         //  bitmode: MPSSE
-        setBitmode(.mpsse, outputPinMask: SpiHardwarePins.outputs.rawValue)
+        setBitmode(.mpsse, outputPinMask: SerialPins.outputs.rawValue)
     }
     
     
     func initializePinState() {
-        queueDataBits(values: 0, outputMask: SpiHardwarePins.outputs.rawValue, pins: .lowBytes)
+        queueDataBits(values: 0, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
     }
     
     
