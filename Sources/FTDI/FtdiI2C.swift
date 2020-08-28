@@ -45,16 +45,10 @@ public class FtdiI2C: Ftdi {
     public override init() throws {
         try super.init()
 
-        configurePorts()
-        confirmMPSSEModeEnabled()
         configureMPSSEForI2C(mode: .standard)
 
         queueI2CBus(state: .idle)
         let _ = flushCommandQueue()
-    }
-
-    deinit {
-        endMPSSE()
     }
 
 

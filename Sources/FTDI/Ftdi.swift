@@ -73,6 +73,13 @@ public class Ftdi {
         let usbSubsystem = USBBus()
         device = try usbSubsystem.findDevice()
         logger.logLevel = .trace
+
+        configurePorts()
+        confirmMPSSEModeEnabled()
+    }
+
+    deinit {
+        endMPSSE()
     }
 
     /// AN_135_MPSSE_Basics lifetime: 4.2 Configure FTDI Port For MPSSE Use
