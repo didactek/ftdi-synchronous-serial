@@ -74,6 +74,7 @@ public class Ftdi {
         device = try usbSubsystem.findDevice()
         logger.logLevel = .trace
 
+        // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
         configurePorts()
         confirmMPSSEModeEnabled()
     }

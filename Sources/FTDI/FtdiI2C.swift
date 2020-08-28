@@ -25,44 +25,58 @@ extension Ftdi.SerialPins {
 
 public class FtdiI2C: Ftdi {
     enum Mode {
-        case standard // 100 kbps
         #if false  // unsupported
-        case fast // 400 kbps
-        case fastPlus // 1 Mbps
-        case highSpeed // 3.4 Mbps
-        case ultraFast // 5 Mbps
-        case turbo // 1.4 Mbps  // Wikipedia
+        /// 100 kbps
+        case standard
+        #endif
+        /// 400 kbps
+        case fast
+        #if false  // unsupported
+        /// 1 Mbps
+        case fastPlus
+        /// 3.4 Mbps
+        case highSpeed
+        /// 5 Mbps
+        case ultraFast
+        /// 1.4 Mbps
+        case turbo  // not in spec, but per Wikipedia
         #endif
 
         func clockSpeed() -> Int {
             switch self {
+                #if false
             case .standard:
                 return 100_000
+                #endif
+            case .fast:
+                return 400_000
             }
         }
     }
 
+    let mode: Mode
+
     public override init() throws {
+        self.mode = .fast
         try super.init()
 
-        configureMPSSEForI2C(mode: .standard)
+        configureMPSSEForI2C()
 
         queueI2CBus(state: .idle)
-        let _ = flushCommandQueue()
+        flushCommandQueue()
     }
 
 
-    func configureMPSSEForI2C(mode: Mode) {
+    func configureMPSSEForI2C() {
         // Output pins were set when MPSSE was enabled
 
         // I2C wires may be asserted by any device on the bus:
         setTristate(lowMask: SerialPins.tristate.rawValue, highMask: 0)
 
         // Clock
-        disableAdaptiveClock()
+        disableAdaptiveClock()  // FIXME: redundant but pedantic; if we do this we should set divisor too
         configureClocking(frequencyHz: mode.clockSpeed(), forThreePhase: true)
         enableThreePhaseClock()
-
     }
 
     //========================
@@ -70,13 +84,21 @@ public class FtdiI2C: Ftdi {
     //========================
 
     /// UM10204, Chapter 6: signal timing requirements at various bus speeds. Table 10 defines wait periods for different modes.
+    ///
+    /// This is inteded to provide delay sufficient to meet "hold for start of clock" (tHD;STA), "setup time for repeated start"
+    /// (tSU;STA), and *half* the time for "time between a STOP and a START" (tBUF).
     // FIXME: 600ns is typical of Fast-mode, yet loop was modeled after FTDI exmaple that was supposedly Standard-mode. Encode Table 10 and use the right delay!
-    func hold600ns( pinCmd: () -> Void ) {
+    func holdDelay( pinCmd: () -> Void ) {
         // loop count suggested in AN 113
         // goal of loop is to hold pins for 600ns
         // FIXME: confirm this is effective?
-        for _ in 0 ..< 4 {
-            pinCmd()
+        // FIXME: could more accurate timing be achieved using "clock for N cycles" to get the timing right, but with the clock output disabled? (This would mean it could only float high, unless another pin was used to sink it low?) Why isn't there an operation for this? (If pulling low with another pin, output need not be disabled because tristate.)
+        // FIXME: might an alternate way of doing this invovle inverting the clock output and clocking? The required dwell times are the same as the clock timing (unsurprisingly)
+        switch mode {
+        case .fast:  // 600ns
+            for _ in 0 ..< 4 {
+                pinCmd()
+            }
         }
     }
 
@@ -138,14 +160,14 @@ public class FtdiI2C: Ftdi {
     /// UM10204: 3.1.4: a start condition is indicated by SDA going from high
     /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
     func sendStart() {
-        hold600ns {
+        holdDelay {
             queueI2CBus(state: .idle)
         }
-        hold600ns {
+        holdDelay {
             queueI2CBus(sda: .zero, clock: .float)  // "reserveOrRelease"
         }
         queueI2CBus(sda: .zero, clock: .zero)  // FIXME: .clockLow might be both functionally equivalent and more clear?
-        let _ = flushCommandQueue()
+        flushCommandQueue()
     }
 
     /// Signal the end of communications on a bus.
@@ -153,13 +175,13 @@ public class FtdiI2C: Ftdi {
     /// UM10204: 3.1.4: stop is indicated when SDA goes high when clock is high.
     /// (Pins will remain high until a new conversation is started.)
     func sendStop() {
-        hold600ns {
+        holdDelay {
             queueI2CBus(sda: .zero, clock: .float)
         }
-        hold600ns {
+        holdDelay {
             queueI2CBus(state: .idle)
         }
-        let _ = flushCommandQueue()
+        flushCommandQueue()
     }
 
     /// Write a byte and check its ACK
@@ -205,7 +227,7 @@ public class FtdiI2C: Ftdi {
         let promisedResponse = readWithClock(bits: 8, during: .highClock)
         writeWithClock(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
-        hold600ns {  // FIXME: this seems spurious given the clocked write of the (n)ack.
+        holdDelay {  // FIXME: this seems spurious given the clocked write of the (n)ack.
             queueI2CBus(state: .clockLow)
         }
 
