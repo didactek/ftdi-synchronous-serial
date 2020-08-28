@@ -15,7 +15,7 @@ import Foundation
 /// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
 public class FtdiSPI: Ftdi {
 
-    /// Enumerates the supported modes and provides
+    /// SPI Modes and their specifications
     enum ClockSemantics {
         case mode0
         #if false  // remainder not currently implemented
@@ -24,7 +24,7 @@ public class FtdiSPI: Ftdi {
         case mode3
         #endif
 
-        /// the edge when writing data must be valid
+        /// The edge when writing data must be valid
         var writeWindow: DataWindow {
             switch self {
             case .mode0:
@@ -57,7 +57,7 @@ public class FtdiSPI: Ftdi {
 
     /// Queue commands to set the SPI bus to its idle state.
     ///
-    /// Idle is data and clock pins low.
+    /// Definition of idle for the SPI mode is defined in ClockSemantics.
     func setSPIIdle() {
         queueDataBits(values: mode.busAtIdle, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
     }
