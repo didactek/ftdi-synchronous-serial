@@ -24,27 +24,6 @@ public class FtdiSPI: Ftdi {
         endMPSSE()
     }
 
-    /// AN_135_MPSSE_Basics lifetime: 4.2 Configure FTDI Port For MPSSE Use
-    func configurePorts() {
-        // Reset peripheral side
-        //  rx buf purged
-        //  bitmode: RESET
-// FIXME: this is not a FT_ResetDevice, but a MPSSE controller reset, which is different
-        setBitmode(.reset)
-        // Configure USB transfer sizes
-        // Set event/error characters
-        // Set timeouts
-        // Set latency timer
-        setLatency(mSec: 16)
-        // Set flow control
-        // Reset MPSSE controller  //FIXME: different from "reset peripheral side", and if so: should these be different calls?
-        //  bitmode: RESET
-        setBitmode(.reset)
-        //  rx buf purged
-        // Enable MPSSE controller
-        //  bitmode: MPSSE
-        setBitmode(.mpsse, outputPinMask: SerialPins.outputs.rawValue)
-    }
 
 
     func initializePinState() {

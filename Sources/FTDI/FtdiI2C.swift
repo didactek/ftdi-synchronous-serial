@@ -57,26 +57,6 @@ public class FtdiI2C: Ftdi {
         endMPSSE()
     }
 
-    func configurePorts() {
-        // Reset peripheral side
-        //  rx buf purged
-        //  bitmode: RESET
-        setBitmode(.reset)
-        // Configure USB transfer sizes
-        // Set event/error characters
-        // Set timeouts
-        // Set latency timer
-        setLatency(mSec: 16)
-        // Set flow control
-        // Reset MPSSE controller  //FIXME: different from "reset peripheral side", and if so: should these be different calls?
-        //  bitmode: RESET
-        setBitmode(.reset)
-        //  rx buf purged
-        // Enable MPSSE controller
-        //  bitmode: MPSSE
-        setBitmode(.mpsse, outputPinMask: SerialPins.outputs.rawValue)
-    }
-
 
     func configureMPSSEForI2C(mode: Mode) {
         // Output pins were set when MPSSE was enabled
