@@ -45,17 +45,30 @@ public class CommandResponsePromise {
 /// Represent an FTDI FT232H operating in MPSSE mode, connected to host via USB.
 ///
 /// The FT232H has 16 general purpose I/O pins (GPIO) that can be configured for input or output.
-/// It also has an onboard clock and associated built-in logic for using three pins (clock, dataIn, and dataOut)
-/// for clocked serial communications. In serial clocking mode, the remaining pins can be used for GPIO.
-/// Protocols that require "chip select" or other signals can be implemented by allocating pins for these
-/// functions and managing the pin state explicitly.
+/// It also has an onboard clock and associated built-in logic (the "Multi-Purpose Synchronous Serial Engine",
+/// or MPSSE) that uses three pins (clock, dataIn, and dataOut) for clocked serial communications.
+///
+/// In serial clocking mode, the remaining pins can be used for GPIO.
+/// Protocols that require "chip select" or other signals can be implemented by assigning any of the remaining
+/// pins for these functions and managing the pin state explicitly.
 public class Ftdi {
     let device: USBDevice
 
     var commandQueue = Data()
     var expectedResultCounts: [CommandResponsePromise] = []
 
+    struct SerialPins: OptionSet {
+        let rawValue: UInt8
 
+        static let clock   = SerialPins(rawValue: 1 << 0)
+        static let dataOut = SerialPins(rawValue: 1 << 1)
+        static let dataIn  = SerialPins(rawValue: 1 << 2)
+
+        static let outputs: SerialPins = [.clock, .dataOut]
+        static let inputs: SerialPins = [.dataIn]
+    }
+
+    // FIXME: inject device
     public init() throws {
         let usbSubsystem = USBBus()
         device = try usbSubsystem.findDevice()

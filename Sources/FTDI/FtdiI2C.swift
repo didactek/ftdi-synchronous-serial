@@ -18,23 +18,12 @@ import Foundation
 // UM10204: I2C-bus specification and user manual
 // https://www.nxp.com/docs/en/user-guide/UM10204.pdf
 
-// FIXME: buffer commands and send as a group
+extension Ftdi.SerialPins {
+    static let tristate: Ftdi.SerialPins = [.clock, .dataOut]
+}
+
+
 public class FtdiI2C: Ftdi {
-    struct I2CHardwarePins: OptionSet {
-        let rawValue: UInt8
-
-        static let clock   = I2CHardwarePins(rawValue: 1 << 0)
-        // the chip is wired so dataOut and dataIn pins are tied togther to form SDA: dataOut is used to pull the bus down or to let it float; data is read on the dataIn pin
-        static let dataOut = I2CHardwarePins(rawValue: 1 << 1)
-        static let dataIn  = I2CHardwarePins(rawValue: 1 << 2)
-        // if one needs clock stretching, a pin should be allocated to watch for the bus pausing the clock signal
-        // GPIOl0 might be used for Write Protect
-
-        static let outputs: I2CHardwarePins = [.clock, .dataOut]
-        static let inputs: I2CHardwarePins = [.dataIn]
-        static let tristate: I2CHardwarePins = [.clock, .dataOut]
-    }
-
     enum Mode {
         case standard // 100 kbps
         #if false  // unsupported
@@ -85,7 +74,7 @@ public class FtdiI2C: Ftdi {
         //  rx buf purged
         // Enable MPSSE controller
         //  bitmode: MPSSE
-        setBitmode(.mpsse, outputPinMask: I2CHardwarePins.outputs.rawValue)
+        setBitmode(.mpsse, outputPinMask: SerialPins.outputs.rawValue)
     }
 
 
@@ -93,7 +82,7 @@ public class FtdiI2C: Ftdi {
         // Output pins were set when MPSSE was enabled
 
         // I2C wires may be asserted by any device on the bus:
-        setTristate(lowMask: I2CHardwarePins.tristate.rawValue, highMask: 0)
+        setTristate(lowMask: SerialPins.tristate.rawValue, highMask: 0)
 
         // Clock
         disableAdaptiveClock()
@@ -129,7 +118,7 @@ public class FtdiI2C: Ftdi {
     /// sendStart and again(?!) by the idle epilogue in sendStop.
     func queueI2CBus(sda: TristateOutput, clock: TristateOutput) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
-        var floatingPins = I2CHardwarePins()
+        var floatingPins = SerialPins()
         if sda == .float {
             floatingPins.insert(.dataOut)
         }
@@ -138,7 +127,7 @@ public class FtdiI2C: Ftdi {
         }
 
         queueDataBits(values: floatingPins.rawValue,
-                    outputMask: I2CHardwarePins.outputs.rawValue,
+                    outputMask: SerialPins.outputs.rawValue,
                     pins: .lowBytes)
     }
 
