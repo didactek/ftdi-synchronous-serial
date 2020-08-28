@@ -18,10 +18,6 @@ import Foundation
 // UM10204: I2C-bus specification and user manual
 // https://www.nxp.com/docs/en/user-guide/UM10204.pdf
 
-extension Ftdi.SerialPins {
-    static let tristate: Ftdi.SerialPins = [.clock, .dataOut]
-}
-
 
 public class FtdiI2C: Ftdi {
     enum Mode {
@@ -68,15 +64,13 @@ public class FtdiI2C: Ftdi {
 
 
     func configureMPSSEForI2C() {
-        // Output pins were set when MPSSE was enabled
+        // I2C wires may be asserted low by any device on the bus.
+        // Notably this is used when reading data (resting state of dataOut
+        // should not interfere with read) and for clock stretching (clock
+        // may be held low by a device that is not ready to respond).
+        setTristate(lowMask: SerialPins.outputs.rawValue, highMask: 0)
 
-        // I2C wires may be asserted by any device on the bus:
-        setTristate(lowMask: SerialPins.tristate.rawValue, highMask: 0)
-
-        // Clock
-        disableAdaptiveClock()  // FIXME: redundant but pedantic; if we do this we should set divisor too
         configureClocking(frequencyHz: mode.clockSpeed(), forThreePhase: true)
-        enableThreePhaseClock()
     }
 
     //========================
