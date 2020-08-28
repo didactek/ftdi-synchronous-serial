@@ -280,7 +280,7 @@ public class Ftdi {
         }
     }
 
-    /// Set the clock output frequency.
+    /// Set the clock output frequency. Set up 3-phase clocking if requested.
     ///
     /// frequencyHz is the desired full cycle rate on the clock pin.
     ///
@@ -296,6 +296,14 @@ public class Ftdi {
     /// cycled only during data clocking commands.
     func configureClocking(frequencyHz: Int, forThreePhase: Bool = false) {
         let timedActionsPerCycle = forThreePhase ? 3 : 2
+
+        // AN 135 5.3.2 suggests explicitly setting even default values:
+        disableAdaptiveClock()  // default
+        if forThreePhase {
+            enableThreePhaseClock()
+        } else {
+            disableThreePhaseClock()  // default
+        }
 
         // FIXME: only low speed implemented currently
         // FIXME: explicitly enabling/disabling divide-by-5 is recommended.
@@ -322,6 +330,16 @@ public class Ftdi {
     /// the setClock frequency needs to be adjusted appropriately.
     func enableThreePhaseClock() {
         callMPSSE(command: .enableClock3Phase, arguments: Data())
+    }
+
+    /// Use a 2-phase clock.
+    ///
+    /// On a 2-phase write, the clock is immediate XOr'd, then the value of dataOut is set. The first half
+    /// of the clock cycle is counted out (one phase), then the clock is XOr'd. Then the second half of
+    /// the cycle is counted out, with the data being kept valid across the phase change and through
+    /// the completion of the clock cycle.
+    func disableThreePhaseClock() {
+        callMPSSE(command: .disableClock3Phase, arguments: Data())
     }
     
     public enum DataWindow {
