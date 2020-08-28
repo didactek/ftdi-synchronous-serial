@@ -12,18 +12,12 @@ public class FtdiSPI: Ftdi {
     public init(speedHz: Int) throws {
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
         try super.init()
-        configurePorts()
-        confirmMPSSEModeEnabled()
+
         configureMPSSEForSPI(frequencyHz: speedHz)
         // AN_135_MPSSE_Basics lifetime: Use serial port/GPIO:
     }
     
-    deinit {
-        endMPSSE()
-    }
-
-
-    
+     
     func initializePinState() {
         queueDataBits(values: 0, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
     }
