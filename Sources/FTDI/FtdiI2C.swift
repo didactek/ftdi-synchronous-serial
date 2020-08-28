@@ -56,14 +56,6 @@ public class FtdiI2C: Ftdi {
         self.mode = .fast
         try super.init()
 
-        configureMPSSEForI2C()
-
-        queueI2CBus(state: .idle)
-        flushCommandQueue()
-    }
-
-
-    func configureMPSSEForI2C() {
         // I2C wires may be asserted low by any device on the bus.
         // Notably this is used when reading data (resting state of dataOut
         // should not interfere with read) and for clock stretching (clock
@@ -71,7 +63,11 @@ public class FtdiI2C: Ftdi {
         setTristate(lowMask: SerialPins.outputs.rawValue, highMask: 0)
 
         configureClocking(frequencyHz: mode.clockSpeed(), forThreePhase: true)
+
+        queueI2CBus(state: .idle)
+        flushCommandQueue()
     }
+
 
     //========================
     // Physical bus managment
