@@ -20,37 +20,7 @@ import Foundation
 
 
 public class FtdiI2C: Ftdi {
-    enum Mode {
-        #if false  // unsupported
-        /// 100 kbps
-        case standard
-        #endif
-        /// 400 kbps
-        case fast
-        #if false  // unsupported
-        /// 1 Mbps
-        case fastPlus
-        /// 3.4 Mbps
-        case highSpeed
-        /// 5 Mbps
-        case ultraFast
-        /// 1.4 Mbps
-        case turbo  // not in spec, but per Wikipedia
-        #endif
-
-        func clockSpeed() -> Int {
-            switch self {
-                #if false
-            case .standard:
-                return 100_000
-                #endif
-            case .fast:
-                return 400_000
-            }
-        }
-    }
-
-    let mode: Mode
+    let mode: I2CModeSpec
 
     public override init() throws {
         self.mode = .fast
