@@ -40,7 +40,7 @@ public class Ftdi {
     }
     
     // FIXME: inject device
-    public init() throws {
+    init() throws {
         let usbSubsystem = USBBus()
         device = try usbSubsystem.findDevice()
         logger.logLevel = .trace
@@ -320,15 +320,7 @@ public class Ftdi {
         callMPSSE(command: .disableClock3Phase)
     }
     
-    enum DataWindow {
-        /// transition to +ve; rising edge
-        case risingEdge
-        /// transition to -ve; falling edge
-        case fallingEdge
-        /// while clock is high (requires 3-phase clock)
-        case highClock
-    }
-    
+
     enum BitOrder {
         /// most-significant bit first
         case msb
