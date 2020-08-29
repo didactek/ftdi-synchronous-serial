@@ -213,6 +213,12 @@ public class Ftdi {
         device.bulkTransferOut(msg: cmd)
     }
 
+    private func callMPSSE(command: MpsseCommand) {
+        let cmd = Data([command.rawValue])
+        device.bulkTransferOut(msg: cmd)
+    }
+
+
     private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
         commandQueue.append(command.rawValue)
         commandQueue.append(arguments)
@@ -241,7 +247,6 @@ public class Ftdi {
         var beingAssembled = Data()
 
         while !expectedResultCounts.isEmpty && retries > 0 {
-            Thread.sleep(until: Date(timeIntervalSinceNow: 0.010))
             let newBytesRead = device.bulkTransferIn()
             logger.trace("bulk transfer read \(pretty(newBytesRead))")
             retries -= 1
@@ -315,13 +320,13 @@ public class Ftdi {
         let divisor = internalClock / (timedActionsPerCycle * frequencyHz) - 1
 
         let divisorSetting = UInt16(clamping: divisor)
-        let argument = withUnsafeBytes(of: divisorSetting.littleEndian) {Data($0)}
+        let divisorLE = withUnsafeBytes(of: divisorSetting.littleEndian) {Data($0)}
 
-        callMPSSE(command: .setTCKDivisor, arguments: argument)
+        callMPSSE(command: .setTCKDivisor, arguments: divisorLE)
     }
 
     func disableAdaptiveClock() {
-        callMPSSE(command: .disableAdaptiveClocking, arguments: Data())
+        callMPSSE(command: .disableAdaptiveClocking)
     }
 
     /// Sustain data through a clock high or low phase instead of during a transition.
@@ -331,7 +336,7 @@ public class Ftdi {
     /// Full cycle takes three triggers of the internal clock used for state transitions, so
     /// the setClock frequency needs to be adjusted appropriately.
     func enableThreePhaseClock() {
-        callMPSSE(command: .enableClock3Phase, arguments: Data())
+        callMPSSE(command: .enableClock3Phase)
     }
 
     /// Use a 2-phase clock.
@@ -341,7 +346,7 @@ public class Ftdi {
     /// the cycle is counted out, with the data being kept valid across the phase change and through
     /// the completion of the clock cycle.
     func disableThreePhaseClock() {
-        callMPSSE(command: .disableClock3Phase, arguments: Data())
+        callMPSSE(command: .disableClock3Phase)
     }
 
     public enum DataWindow {
