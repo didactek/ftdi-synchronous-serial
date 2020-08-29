@@ -32,6 +32,7 @@ public class FtdiSPI: Ftdi {
         
         /// clock and dataOut values for an idle bus.
         /// (as a bit field)
+        // FIXME: how to make this implementation-independent so this can be moved to a specification-only file?
         var busAtIdle: UInt8 {
             switch self {
             case .mode0:
