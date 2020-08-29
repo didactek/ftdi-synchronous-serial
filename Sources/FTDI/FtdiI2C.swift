@@ -59,24 +59,19 @@ public class FtdiI2C: Ftdi {
             }
         }
     }
-    
-    enum TristateOutput {
-        case float  // let the bus float; normally biased high, but may be sunk to zero by another device
-        case zero  // pull down to zero
-    }
-    
+
     /// Set the I2C output pins to specified values
     ///
     /// This function does not provide any delay required to hold the lines
     /// for a clock cycle or stabilization period. If needed, timing should be provided by callers, as by the idle prologue in
     /// sendStart and again(?!) by the idle epilogue in sendStop.
-    func queueI2CBus(state: BusState) {
+    func queueI2CBus(state: I2CBusState) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
         var floatingPins = SerialPins()
         if state.sda == .float {
             floatingPins.insert(.dataOut)
         }
-        if state.clock == .float {
+        if state.scl == .float {
             floatingPins.insert(.clock)
         }
         
@@ -84,17 +79,6 @@ public class FtdiI2C: Ftdi {
                     outputMask: SerialPins.outputs.rawValue,
                     pins: .lowBytes)
     }
-    
-    struct BusState {
-        let sda: TristateOutput
-        let clock: TristateOutput
-        
-        /// UM10204, 3.1.1: SDA and CLK high -> bus is free/unclaimed
-        static let idle = Self(sda: .float, clock: .float)
-        /// Hold the clock low; neutral state between operations
-        static let clockLow = Self(sda: .float, clock: .zero)
-    }
-
     
     /// Signal the start of communications on a bus.
     ///
@@ -105,9 +89,9 @@ public class FtdiI2C: Ftdi {
             queueI2CBus(state: .idle)
         }
         holdDelay {
-            queueI2CBus(state: BusState(sda: .zero, clock: .float))  // "reserveOrRelease"
+            queueI2CBus(state: I2CBusState(sda: .zero, scl: .float))  // "reserveOrRelease"
         }
-        queueI2CBus(state: BusState(sda: .zero, clock: .zero))  // FIXME: .clockLow might be both functionally equivalent and more clear?
+        queueI2CBus(state: I2CBusState(sda: .zero, scl: .zero))  // FIXME: .clockLow might be both functionally equivalent and more clear?
         flushCommandQueue()
     }
     
@@ -117,7 +101,7 @@ public class FtdiI2C: Ftdi {
     /// (Pins will remain high until a new conversation is started.)
     func sendStop() {
         holdDelay {
-            queueI2CBus(state: BusState(sda: .zero, clock: .float))
+            queueI2CBus(state: I2CBusState(sda: .zero, scl: .float))
         }
         holdDelay {
             queueI2CBus(state: .idle)
