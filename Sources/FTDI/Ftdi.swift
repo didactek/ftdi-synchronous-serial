@@ -320,7 +320,7 @@ public class Ftdi {
         callMPSSE(command: .disableClock3Phase)
     }
     
-    public enum DataWindow {
+    enum DataWindow {
         /// transition to +ve; rising edge
         case risingEdge
         /// transition to -ve; falling edge
@@ -329,7 +329,7 @@ public class Ftdi {
         case highClock
     }
     
-    public enum BitOrder {
+    enum BitOrder {
         /// most-significant bit first
         case msb
         /// least-significant bit first
@@ -347,7 +347,7 @@ public class Ftdi {
     ///
     /// The clock pin is not immediately set by this function on entry, but instead must already be
     /// at the appropriate value for the starting phase. The clock will be XORd twice, so it will end in the same state it started.
-    public func writeWithClock(data: Data, during window: DataWindow, bitOrder: BitOrder = .msb) {
+    func writeWithClock(data: Data, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard data.count > 0 else {
             fatalError("write must send minimum of one byte")
         }
@@ -392,7 +392,7 @@ public class Ftdi {
     ///
     /// The clock pin is not immediately set by this function on entry, but instead must already be
     /// at the appropriate value for the starting phase. The clock will be XORd twice, so it will end in the same state it started.
-    public func writeWithClock(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
+    func writeWithClock(bits: Int, ofDatum: UInt8, during window: DataWindow, bitOrder: BitOrder = .msb) {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
@@ -435,7 +435,7 @@ public class Ftdi {
     ///
     /// Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB
     /// and shifted on each entry. May require shift of (8 minus 'bits') to place into low bits.
-    public func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
+    func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
         }
