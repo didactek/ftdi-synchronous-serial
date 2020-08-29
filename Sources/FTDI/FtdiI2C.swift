@@ -32,7 +32,7 @@ public class FtdiI2C: Ftdi {
         // may be held low by a device that is not ready to respond).
         setTristate(lowMask: SerialPins.outputs.rawValue, highMask: 0)
 
-        configureClocking(frequencyHz: mode.clockSpeed(), forThreePhase: true)
+        configureClocking(frequencyHz: mode.maxClockSpeed, forThreePhase: true)
 
         queueI2CBus(state: .idle)
         flushCommandQueue()
