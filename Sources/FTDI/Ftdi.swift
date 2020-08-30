@@ -23,6 +23,9 @@ var logger = Logger(label: "com.didactek.libusb.ftdi-core")
 /// Protocols that require "chip select" or other signals can be implemented by assigning any of the remaining
 /// pins for these functions and managing the pin state explicitly.
 public class Ftdi {
+    public static let defaultIdVendor = 0x0403
+    public static let defaultIdProduct = 0x6014
+
     let device: USBDevice
     
     var commandQueue = Data()
@@ -40,9 +43,8 @@ public class Ftdi {
     }
     
     // FIXME: inject device
-    init() throws {
-        let usbSubsystem = USBBus()
-        device = try usbSubsystem.findDevice()
+    init(device: USBDevice) throws {
+        self.device = device
         logger.logLevel = .trace
 
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
