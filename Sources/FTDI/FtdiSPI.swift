@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import LibUSB
 
 /// Use an FTDI FT232H to communicate with devices using SPI (Serial Peripheral Interface).
 ///
@@ -45,9 +46,9 @@ public class FtdiSPI: Ftdi {
 
     let mode: ClockSemantics
 
-    public init(speedHz: Int) throws {
+    public init(device: USBDevice, speedHz: Int) throws {
         mode = .mode0
-        try super.init()
+        try super.init(device: device)
 
         configureClocking(frequencyHz: speedHz)
 

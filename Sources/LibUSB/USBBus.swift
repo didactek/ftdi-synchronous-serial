@@ -14,7 +14,8 @@ import CLibUSB
 public class USBBus {
     let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
 
-    public func findDevice() throws -> USBDevice {
+
+    public func findDevice(idVendor: Int?, idProduct: Int?, serialNumber: String?) throws -> USBDevice {
         // scan for devices:
         var devices: UnsafeMutablePointer<OpaquePointer?>? = nil
         let deviceCount = libusb_get_device_list(ctx, &devices)
