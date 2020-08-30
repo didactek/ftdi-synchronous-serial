@@ -95,6 +95,17 @@ public class USBDevice {
         libusb_close(handle)
         libusb_unref_device(device)
     }
+    
+    func getString(atIndex: Int) -> String {
+        fatalError("get indexed string not implemented")
+        #if false  // FIXME: do string lookup
+        // get the serial number:
+        // need a lang descriptor
+        let bufSize = 1024
+        var string = Data(repeating: 0, count: bufSize)
+        libusb_get_descriptor(handle, LIBUSB_DT_STRING, serialNumberIndex, &string, Int32(bufSize))
+        #endif
+    }
 
     // USB spec 2.0, sec 9.3: USB Device Requests
     // USB spec 2.0, sec 9.3.1: bmRequestType
