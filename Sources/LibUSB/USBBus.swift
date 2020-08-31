@@ -16,6 +16,7 @@ public class USBBus {
         case noDeviceMatched
         case deviceCriteriaNotUnique
     }
+
     let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
 
 
@@ -69,11 +70,11 @@ public class USBBus {
         logger.debug("product: \(String(descriptor.idProduct, radix: 16))")
         logger.debug("device has \(descriptor.bNumConfigurations) configurations")
 
-        return DeviceDescription(device: device,
-                                 idVendor: Int(descriptor.idVendor),
-                                 idProduct: Int(descriptor.idProduct),
-                                 bNumConfigurations: Int(descriptor.bNumConfigurations)
-        )
+        return DeviceDescription(
+            device: device,
+            idVendor: Int(descriptor.idVendor),
+            idProduct: Int(descriptor.idProduct),
+            bNumConfigurations: Int(descriptor.bNumConfigurations))
     }
 
      public init() {
