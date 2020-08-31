@@ -15,7 +15,7 @@ do { // hoping block scope triggers FtdiSPI.deinit
         .findDevice(idVendor: Ftdi.defaultIdVendor,
                     idProduct: Ftdi.defaultIdProduct)
     #if true
-    let bus = try! FtdiSPI(device: ftdiDevice, speedHz: 1_000_000)
+    let bus = try! FtdiSPI(ftdiAdapter: ftdiDevice, speedHz: 1_000_000)
     let ledPrologue = Data(repeating: 0, count: 4)
     let ledEpilogue = Data(repeating: 0xff, count: 4)
     let ledBlue = Data([0xe8, 0xff, 0x00, 0x00])

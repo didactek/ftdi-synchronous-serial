@@ -12,8 +12,8 @@ import LibUSB
 ///
 ///References:
 /// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
-public class FtdiSPI: Ftdi {
-    
+public class FtdiSPI {
+    let serialEngine: Ftdi
     /// SPI Modes and their specifications
     enum ClockSemantics {
         case mode0
@@ -44,14 +44,14 @@ public class FtdiSPI: Ftdi {
     
     let mode: ClockSemantics
 
-    public init(device: USBDevice, speedHz: Int) throws {
+    public init(ftdiAdapter: USBDevice, speedHz: Int) throws {
         mode = .mode0
-        try super.init(device: device)
+        serialEngine = try Ftdi(device: ftdiAdapter)
 
-        configureClocking(frequencyHz: speedHz)
+        serialEngine.configureClocking(frequencyHz: speedHz)
 
         setSPIIdle()
-        flushCommandQueue()
+        serialEngine.flushCommandQueue()
     }
     
 
@@ -59,13 +59,13 @@ public class FtdiSPI: Ftdi {
     ///
     /// Definition of idle for the SPI mode is defined in ClockSemantics.
     func setSPIIdle() {
-        queueDataBits(values: mode.busAtIdle, outputMask: SerialPins.outputs.rawValue, pins: .lowBytes)
+        serialEngine.queueDataBits(values: mode.busAtIdle, outputMask: Ftdi.SerialPins.outputs.rawValue, pins: .lowBytes)
     }
     
     /// Push data to the SPI bus.
     ///
     /// Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
     public func write(data: Data) {
-        writeWithClock(data: data, during: mode.writeWindow)
+        serialEngine.writeWithClock(data: data, during: mode.writeWindow)
     }
 }
