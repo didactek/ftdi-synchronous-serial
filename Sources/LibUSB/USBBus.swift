@@ -19,7 +19,7 @@ public class USBBus {
     let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
 
 
-    public func findDevice(idVendor: Int?, idProduct: Int?, serialNumber: String?) throws -> USBDevice {
+    public func findDevice(idVendor: Int?, idProduct: Int?) throws -> USBDevice {
         // scan for devices:
         var devicesBuffer: UnsafeMutablePointer<OpaquePointer?>? = nil
         let deviceCount = libusb_get_device_list(ctx, &devicesBuffer)
@@ -31,12 +31,9 @@ public class USBBus {
         }
         logger.debug("found \(deviceCount) devices")
 
-        // find the device
-        // FIXME: be more precise than this! Look at all the entries; libusb
-        // says libusb_open_device_with_vid_pid is a crutch and that enumeration
-        // is the right way to go....
         var details = (0 ..< deviceCount).map { deviceDetail(device: devicesBuffer![$0]!) }
 
+        // try to select one device from spec
         if let idVendor = idVendor {
             details.removeAll { $0.idVendor != idVendor }
         }
@@ -46,26 +43,13 @@ public class USBBus {
             }
             details.removeAll { $0.idProduct != idProduct }
         }
-        if let serialNumber = serialNumber {
-            guard idProduct != nil else {
-                fatalError("idProduct required if specifying serialNumber")
-            }
-            for description in details {
-                let device = try USBDevice(subsystem: self, device: description.device)
-                if device.getString(atIndex: description.iSerialNumber) == serialNumber {
-                    return device
-                }
-            }
+        if details.isEmpty {
             throw UsbError.noDeviceMatched
-        } else {
-            if details.isEmpty {
-                throw UsbError.noDeviceMatched
-            }
-            if details.count > 1 {
-                throw UsbError.deviceCriteriaNotUnique
-            }
-            return try USBDevice(subsystem: self, device: details.first!.device)
         }
+        if details.count > 1 {
+            throw UsbError.deviceCriteriaNotUnique
+        }
+        return try USBDevice(subsystem: self, device: details.first!.device)
     }
 
 
@@ -74,8 +58,6 @@ public class USBBus {
         let device: OpaquePointer
         let idVendor: Int
         let idProduct: Int
-        /// Index to the serial number string. Access to the string requires opening the device.
-        let iSerialNumber: Int
         let bNumConfigurations: Int
 
     }
@@ -90,7 +72,6 @@ public class USBBus {
         return DeviceDescription(device: device,
                                  idVendor: Int(descriptor.idVendor),
                                  idProduct: Int(descriptor.idProduct),
-                                 iSerialNumber: Int(descriptor.iSerialNumber),
                                  bNumConfigurations: Int(descriptor.bNumConfigurations)
         )
     }

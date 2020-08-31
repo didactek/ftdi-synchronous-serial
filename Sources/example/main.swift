@@ -15,8 +15,7 @@ do { // hoping block scope triggers FtdiSPI.deinit
     let usbSubsystem = USBBus()
     let ftdiDevice = try usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,
-                    idProduct: Ftdi.defaultIdProduct,
-                    serialNumber: nil)
+                    idProduct: Ftdi.defaultIdProduct)
     #if true
     let bus = try! FtdiSPI(device: ftdiDevice, speedHz: 1_000_000)
     let ledPrologue = Data(repeating: 0, count: 4)
