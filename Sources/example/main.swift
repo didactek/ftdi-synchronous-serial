@@ -16,7 +16,7 @@ do { // hoping block scope triggers FtdiSPI.deinit
     let ftdiDevice = try usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,
                     idProduct: Ftdi.defaultIdProduct)
-    #if true
+    #if false
     let bus = try! FtdiSPI(ftdiAdapter: ftdiDevice, speedHz: 1_000_000)
     let ledPrologue = Data(repeating: 0, count: 4)
     let ledEpilogue = Data(repeating: 0xff, count: 4)
@@ -25,7 +25,7 @@ do { // hoping block scope triggers FtdiSPI.deinit
     let data = ledPrologue + ledBlue + ledBlue + ledRed + ledBlue + ledBlue + ledEpilogue
     bus.write(data: data)
     #else
-    let bus = try! FtdiI2C(device: ftdiDevice)
+    let bus = try! FtdiI2C(ftdiAdapter: ftdiDevice)
     let radio = try! FtdiI2CDevice(bus: bus, nodeAddress: 0x60)
     let status = radio.read(count: 5)
     print(status.map {String($0, radix: 16)})

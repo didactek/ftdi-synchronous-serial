@@ -31,7 +31,7 @@ public class CommandResponsePromise {
         guard self.writeOnceValue == nil else {
             fatalError("Promise already fulfilled")
         }
-        self.writeOnceValue = Data(value) // FIXME: Xcode 11.6 / Swift 5.2.4: explicit constructor is needed to avoid crash in Data subrange if just use value!! This seems like a bug????
+        self.writeOnceValue = value // FIXME: Xcode 11.6 / Swift 5.2.4: explicit constructor is needed to avoid crash in Data subrange if just use value!! This seems like a bug????
 
         if let callback = fulfillCallback {
             callback(value)
