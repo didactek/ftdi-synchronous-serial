@@ -33,7 +33,7 @@ public class FtdiI2C: Ftdi {
 
         var clockSpeed = mode.maxClockSpeed
         if let overrideClockHz = overrideClockHz {
-            clockSpeed = max(mode.maxClockSpeed, overrideClockHz)
+            clockSpeed = min(mode.maxClockSpeed, overrideClockHz)
         }
         configureClocking(frequencyHz: clockSpeed, forThreePhase: true)
         
