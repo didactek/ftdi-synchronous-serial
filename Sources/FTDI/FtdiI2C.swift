@@ -21,7 +21,7 @@ import LibUSB
 public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
     
-    public override init(ftdiAdapter: USBDevice) throws {
+    public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil) throws {
         self.mode = .fast
         try super.init(ftdiAdapter: ftdiAdapter)
         
@@ -31,7 +31,11 @@ public class FtdiI2C: Ftdi {
         // may be held low by a device that is not ready to respond).
         setTristate(lowMask: SerialPins.outputs.rawValue, highMask: 0)
 
-        configureClocking(frequencyHz: mode.maxClockSpeed, forThreePhase: true)
+        var clockSpeed = mode.maxClockSpeed
+        if let overrideClockHz = overrideClockHz {
+            clockSpeed = max(mode.maxClockSpeed, overrideClockHz)
+        }
+        configureClocking(frequencyHz: clockSpeed, forThreePhase: true)
         
         queueI2CBus(state: .idle)
         flushCommandQueue()
