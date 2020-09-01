@@ -43,8 +43,8 @@ public class Ftdi {
     }
     
     // FIXME: inject device
-    init(device: USBDevice) throws {
-        self.device = device
+    init(ftdiAdapter: USBDevice) throws {
+        self.device = ftdiAdapter
         logger.logLevel = .trace
 
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
@@ -228,11 +228,11 @@ public class Ftdi {
             }
             
             if newBytesRead.count > 2 {
-                beingAssembled.append(newBytesRead.advanced(by: 2))
+                beingAssembled.append(Data(newBytesRead.advanced(by: 2)))
             }
 
             while let needed = expectedResultCounts.first, needed.expectedCount <= beingAssembled.count {
-                needed.fulfill(value: beingAssembled.prefix(needed.expectedCount))
+                needed.fulfill(value: Data(beingAssembled.prefix(needed.expectedCount))) // FIXME: Xcode 11.6 / Swift 5.2.4: explicit constructor is needed to avoid crash in Data subrange if just use value!! This seems like a bug????
                 let _ = expectedResultCounts.removeFirst()
                 beingAssembled.removeFirst(needed.expectedCount)
             }

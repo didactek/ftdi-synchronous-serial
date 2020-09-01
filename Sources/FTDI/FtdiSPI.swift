@@ -46,7 +46,7 @@ public class FtdiSPI {
 
     public init(ftdiAdapter: USBDevice, speedHz: Int) throws {
         mode = .mode0
-        serialEngine = try Ftdi(device: ftdiAdapter)
+        serialEngine = try Ftdi(ftdiAdapter: ftdiAdapter)
 
         serialEngine.configureClocking(frequencyHz: speedHz)
 

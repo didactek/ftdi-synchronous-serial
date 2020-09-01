@@ -21,9 +21,9 @@ import LibUSB
 public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
     
-    public override init(device: USBDevice) throws {
+    public override init(ftdiAdapter: USBDevice) throws {
         self.mode = .fast
-        try super.init(device: device)
+        try super.init(ftdiAdapter: ftdiAdapter)
         
         // I2C wires may be asserted low by any device on the bus.
         // Notably this is used when reading data (resting state of dataOut

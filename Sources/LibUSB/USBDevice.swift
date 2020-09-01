@@ -164,15 +164,13 @@ public class USBDevice {
     
     public func bulkTransferIn() -> Data {
         let bufSize = 1024 // FIXME: tell the device about this!
-        var readBuffer = Data(repeating: 0, count: bufSize)
+        var readBuffer = Array(repeating: UInt8(0), count: bufSize)
         var readCount = Int32(0)
-        let result = readBuffer.withUnsafeMutableBytes { unsafe in
-            libusb_bulk_transfer(handle, readEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, Int32(bufSize), &readCount, usbWriteTimeout)
-        }
+        let result = libusb_bulk_transfer(handle, readEndpoint.rawValue, &readBuffer, Int32(bufSize), &readCount, usbWriteTimeout)
         guard result == 0 else {
             let errorMessage = String(cString: libusb_error_name(result)) // must not free message
             fatalError("bulkTransfer read returned \(result): \(errorMessage)")
         }
-        return readBuffer.prefix(Int(readCount))
+        return Data(readBuffer.prefix(Int(readCount))) // FIXME: Xcode 11.6 / Swift 5.2.4: explicit constructor is needed to avoid crash in Data subrange if we just return the prefix!! This seems like a bug????
     }
 }
