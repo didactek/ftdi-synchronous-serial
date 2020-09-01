@@ -215,6 +215,7 @@ public class Ftdi {
     /// Send all enqueued commands and attempt to fulfill associated promises.
     func flushCommandQueue() {
         queueMPSSE(command: .sendImmediate, arguments: Data())
+        logger.trace("bulk transfer writing \(pretty(commandQueue))")
         device.bulkTransferOut(msg: commandQueue)
         commandQueue.removeAll()
 
