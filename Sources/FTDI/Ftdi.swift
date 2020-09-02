@@ -232,7 +232,7 @@ public class Ftdi {
             guard newBytesRead.count >= 2 else {
                 fatalError("expected at least one byte to follow modem status")
             }
-            if newBytesRead[1] != 60 {
+            if newBytesRead[1] != 0x60 {
                 logger.debug("unusual modem status \(newBytesRead[1])")
             }
 
