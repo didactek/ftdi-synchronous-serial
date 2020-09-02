@@ -224,8 +224,14 @@ public class Ftdi {
             let newBytesRead = device.bulkTransferIn()
             logger.trace("bulk transfer read \(pretty(newBytesRead))")
             retries -= 1
-            guard newBytesRead.prefix(2) == Data([0x32, 0x60]) else {
+            guard newBytesRead.prefix(1) == Data([0x32]) else {
                 fatalError("unfamiliar modem status in response: \(pretty(newBytesRead))")
+            }
+            guard newBytesRead.count >= 2 else {
+                fatalError("expected at least one byte to follow modem status")
+            }
+            if newBytesRead[1] != 60 {
+                logger.debug("unusual modem status \(newBytesRead[1])")
             }
             
             if newBytesRead.count > 2 {
