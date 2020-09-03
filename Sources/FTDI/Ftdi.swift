@@ -89,18 +89,7 @@ public class Ftdi {
     }
 
 
-    /// D2XX FT_SetBItmode values
-    enum BitMode: UInt16 {
-        // FIXME: harmonize comments with documentation
-        case reset = 0x00  // switch off alternative mode (default to UART)
-        case bitbang = 0x01  // classical asynchronous bitbang mode
-        case mpsse = 0x02  // MPSSE mode, available on 2232x chips
-        case syncbb = 0x04  // synchronous bitbang mode
-        case mcu = 0x08  // MCU Host Bus Emulation mode,
-        case opto = 0x10  // Fast Opto-Isolated Serial Interface Mode
-        case cbus = 0x20  // Bitbang on CBUS pins of R-type chips
-        case syncff = 0x40  // Single Channel Synchronous FIFO mode
-    }
+
 
 
     // AN_108: Command Processor for MPSSE and MCU Host Bus Emulation Modes
