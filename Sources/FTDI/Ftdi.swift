@@ -44,7 +44,6 @@ public class Ftdi {
         static let inputs: SerialPins = [.dataIn]
     }
 
-    // FIXME: inject device
     init(ftdiAdapter: USBDevice) throws {
         self.device = ftdiAdapter
         logger.logLevel = .trace
@@ -130,30 +129,49 @@ public class Ftdi {
         // FIXME: add others as necessary/convenient
 
         // 3.6 Set / Read Data Bits High / Low Bytes
-        case setBitsLow = 0x80  // Change LSB GPIO output
-        case setBitsHigh = 0x82  // Change MSB GPIO output
-        case getBitsLow = 0x81  // Get LSB GPIO output
-        case getBitsHigh = 0x83  // Get MSB GPIO output
+        /// Change LSB GPIO output
+        case setBitsLow = 0x80
+        /// Change MSB GPIO output
+        case setBitsHigh = 0x82
+        /// Get LSB GPIO output
+        case getBitsLow = 0x81
+        /// Get MSB GPIO output
+        case getBitsHigh = 0x83
 
         // 3.7 Loopback
-        case loopbackStart = 0x84  // Enable loopback
-        case loopbackEnd = 0x85  // Disable loopback
+        /// Enable loopback
+        case loopbackStart = 0x84
+        /// Disable loopback
+        case loopbackEnd = 0x85
 
         // 3.8 Clock
-        case setTCKDivisor = 0x86  // Set TCK/SK divisor
+        /// Set TCK/SK divisor
+        case setTCKDivisor = 0x86
         // 6 FT232H, FT2232H & FT4232H only
-        case disableClockDivide5 = 0x8a  // Enable 60 MHz clock transitions (30MHz cycle)
-        case enableClockDivide5 = 0x8b  // Enable 12 MHz clock transitions (6MHz cycle)
-        case enableClock3Phase = 0x8c  // Enable 3-phase data clocking (I2C)
-        case disableClock3Phase = 0x8d  // Disable 3-phase data clocking
-        case clockBitsNoData = 0x8e  // Clock for n+1 cycles with no data transfer (JTAG)
-        case clockBytesNoData = 0x8f  // Clock for 8*(n+1) cycles with no data transfer
-        case clockWaitOnHigh = 0x94  // Clock until GPIOL1 goes low **
-        case clockWaitOnLow = 0x95  // Clock until GPIOL1 goes high **
-        case enableAdaptiveClocking = 0x96  // Gate clock on RTCK read from GPIOL3 (ARM/JTAG)
-        case disableAdaptiveClocking = 0x97  // Disable adaptive clocking
-        case clockWaitOnHighTimeout = 0x9c  // Clock until GPIOL1 is high or 8*(n+1) cycles
-        case clockWaitOnLowTimeout = 0x9d  // Clock until GPIOL1 is low or 8*(n+1) cycles
+        /// Enable 60 MHz clock transitions (30MHz cycle)
+        case disableClockDivide5 = 0x8a
+        /// Enable 12 MHz clock transitions (6MHz cycle)
+        case enableClockDivide5 = 0x8b
+        /// Enable 3-phase data clocking (I2C)
+        case enableClock3Phase = 0x8c
+        /// Disable 3-phase data clocking
+        case disableClock3Phase = 0x8d
+        /// Clock for n+1 cycles with no data transfer (JTAG)
+        case clockBitsNoData = 0x8e
+        /// Clock for 8*(n+1) cycles with no data transfer
+        case clockBytesNoData = 0x8f
+        /// Clock until GPIOL1 goes low **
+        case clockWaitOnHigh = 0x94
+        /// Clock until GPIOL1 goes high **
+        case clockWaitOnLow = 0x95
+        /// Gate clock on RTCK read from GPIOL3 (ARM/JTAG)
+        case enableAdaptiveClocking = 0x96
+        /// Disable adaptive clocking
+        case disableAdaptiveClocking = 0x97
+        /// Clock until GPIOL1 is high or 8*(n+1) cycles
+        case clockWaitOnHighTimeout = 0x9c
+        /// Clock until GPIOL1 is low or 8*(n+1) cycles
+        case clockWaitOnLowTimeout = 0x9d
 
         // 5 Instruction release/flow control
 
@@ -165,7 +183,8 @@ public class Ftdi {
         /// Set output pins to float on '1' (I2C)
         case onlyDriveZero = 0x9e
 
-        case bogus = 0xab  // per AN_135; should provoke "0xFA Bad Command" error
+        /// per AN_135; should provoke "0xFA Bad Command" error
+        case bogus = 0xab
 
         // ** documentation is unclear or inconsistent in its description
     }
@@ -465,12 +484,15 @@ public class Ftdi {
         // pins.
 
         // 3.6
-        case highBytes // ACBUS 7-0
-        case lowBytes  // ADBUS 7-0
+        /// ACBUS 7-0
+        case highBytes
+        /// ADBUS 7-0
+        case lowBytes
 
         // By encoding the parallel semantics of opCodes, we can reduce the number of
         // specialized implementations of functions. Because the compiler will enforce
         // case coverage, it reminds us to keep these opCode maps complete.
+        /// Opcode to use to set bits for this block.
         func cmdSetBits() -> MpsseCommand {
             switch self {
             case .highBytes:
@@ -481,10 +503,11 @@ public class Ftdi {
         }
     }
 
-    /// Define pins as input or output
+    /// Define pins as input or output.
     ///
-    /// values sets level on output pins
-    /// 1 in outputMask marks pin as an output
+    /// - Parameter value:desired levels on output pins
+    /// - Parameter outputMask: bitwise indicator of pin use; 1 marks pin as an output
+    /// - Parameter pins: high or low block of pins to configure
     func queueDataBits(values: UInt8, outputMask: UInt8, pins: GpioBlock) {
         let cmd = pins.cmdSetBits()
         let pinSpec = Data([values, outputMask])
@@ -493,10 +516,10 @@ public class Ftdi {
 
     /// Allow output pins to float on '1' (to be pulled up by bus or sunk down by other devices)
     ///
-    /// lowMask: bit field for pins; 1 = float on 'high'; 0 = actively pull high on 'high'
-    /// highMask: bit field for pins;1 = float on 'high'; 0 = actively pull high on 'high'
+    /// - Parameter lowMask: bit field for pins; 1 = float on 'high'; 0 = actively pull high on 'high'
+    /// - Parameter highMask: bit field for pins;1 = float on 'high'; 0 = actively pull high on 'high'
     ///
-    /// AN 108 7.1 Set I/O to only drive on a ‘0’ and tristate on a ‘1’
+    /// Note:[Reference] AN 108 7.1 Set I/O to only drive on a ‘0’ and tristate on a ‘1’
     func setTristate(lowMask: UInt8, highMask: UInt8) {
         let pinSpec = Data([lowMask, highMask])
         callMPSSE(command: .onlyDriveZero, arguments: pinSpec)

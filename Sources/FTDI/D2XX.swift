@@ -58,6 +58,10 @@ extension Ftdi {
         controlTransferOut(bRequest: .setLatencyTimer, value: mSec, data: Data())
     }
 
+    /// Select or reset the operating mode of the FTDI adapter.
+    ///
+    /// - Parameter mode: desired operating mode
+    /// - Parameter outputPinMask: Low pins (ADBUS) configuration: 1 => pin used for output.
     func setBitmode(_ mode: BitMode, outputPinMask: UInt8 = 0) {
         let value = mode.rawValue << 8 | UInt16(outputPinMask)
         controlTransferOut(bRequest: .setBitmode, value: value, data: nil)

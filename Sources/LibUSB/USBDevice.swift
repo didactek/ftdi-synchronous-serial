@@ -74,8 +74,8 @@ public class USBDevice {
         }
         let configurationIndex = 0
         let interfacesCount = configuration[configurationIndex].bNumInterfaces
-        logger.debug("there are \(interfacesCount) interfaces on this device")  // FTDI reports only one, so that's the one we want
-        // FIXME: check ranges at each array; scan for the write endpoint
+        logger.debug("there are \(interfacesCount) interfaces on this device")
+
         guard libusb_claim_interface(handle, interfaceNumber) == 0 else {  // deinit: libusb_release_interface
             throw USBError.claimInterface
         }
@@ -152,15 +152,19 @@ public class USBDevice {
 
 
     public func bulkTransferOut(msg: Data) {
-        var bytesTransferred = Int32(0)
-
         let outgoingCount = Int32(msg.count)
-        var data = msg // copy for safety
-        let result = data.withUnsafeMutableBytes { unsafe in
+
+        var bytesTransferred = Int32(0)
+        var msgScratchCopy = msg
+
+        let result = msgScratchCopy.withUnsafeMutableBytes { unsafe in
             libusb_bulk_transfer(handle, writeEndpoint.rawValue, unsafe.bindMemory(to: UInt8.self).baseAddress, outgoingCount, &bytesTransferred, usbWriteTimeout)
         }
         guard result == 0 else {
             fatalError("bulkTransfer returned \(result)")
+        }
+        guard outgoingCount == bytesTransferred else {
+            fatalError("not all bytes sent")
         }
     }
 
