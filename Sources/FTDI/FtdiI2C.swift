@@ -11,15 +11,14 @@ import Foundation
 import LibUSB
 
 
-// references:
-// https://en.wikipedia.org/wiki/I²C
-// AN_135 FTDI MPSSE Basics Version 1.1
-// AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes
-// https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf
-// UM10204: I2C-bus specification and user manual
-// https://www.nxp.com/docs/en/user-guide/UM10204.pdf
-
-
+/// Use an FTDI FT232H to communicate with devices using I2C.
+///
+/// # References
+/// - [UM10204: I2C-bus specification and user manual](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
+/// - [AN_135 FTDI MPSSE Basics Version 1.1](https://www.ftdichip.com/Support/Documents/AppNotes/AN_135_MPSSE_Basics.pdf)
+/// - [AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes](https://www.ftdichip.com/Support/Documents/AppNotes/AN_108_Command_Processor_for_MPSSE_and_MCU_Host_Bus_Emulation_Modes.pdf)
+/// - [Interfacing FT2232H Hi-Speed Devices to I2C Bus](https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf)
+/// - [I²C at Wikipedia](https://en.wikipedia.org/wiki/I²C)
 public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
 
@@ -67,10 +66,11 @@ public class FtdiI2C: Ftdi {
         }
     }
 
-    /// Set the I2C output pins to specified values
+    /// Schedule setting the I2C output pins on the command queue.
     ///
-    /// This function does not provide any delay required to hold the lines
-    /// for a clock cycle or stabilization period. If needed, timing should be provided by callers, as by the idle prologue in
+    /// - Parameter state: Desired pin states.
+    /// - Note: This function does not provide any delay required to hold the lines for a clock cycle or
+    /// stabilization period. If needed, timing steps should be added by callers, as by the idle prologue in
     /// sendStart and again(?!) by the idle epilogue in sendStop.
     func queueI2CBus(state: I2CBusState) {
         // FIXME: if other pins are used for GPIO, avoid changing them....
@@ -83,14 +83,15 @@ public class FtdiI2C: Ftdi {
         }
 
         queueDataBits(values: floatingPins.rawValue,
-                    outputMask: SerialPins.outputs.rawValue,
-                    pins: .lowBytes)
+                      outputMask: SerialPins.outputs.rawValue,
+                      pins: .lowBytes)
     }
 
     /// Signal the start of communications on a bus.
     ///
-    /// UM10204: 3.1.4: a start condition is indicated by SDA going from high
-    /// to low while the clock remains high. Both are then brought low, ready for the first command byte.
+    /// Indicate start condition by pulling SDA from high to low while the clock remains high,
+    /// then bring both low, signifying a reserved and ready bus.
+    /// - Note:[UM10204: 3.1.4:](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     func sendStart() {
         holdDelay {
             queueI2CBus(state: .idle)
@@ -104,8 +105,9 @@ public class FtdiI2C: Ftdi {
 
     /// Signal the end of communications on a bus.
     ///
-    /// UM10204: 3.1.4: stop is indicated when SDA goes high when clock is high.
+    /// Indicate stop condition by bringing SDA high when clock is high.
     /// (Pins will remain high until a new conversation is started.)
+    /// - Note:[UM10204: 3.1.4:](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     func sendStop() {
         holdDelay {
             queueI2CBus(state: I2CBusState(sda: .zero, scl: .float))
@@ -116,12 +118,13 @@ public class FtdiI2C: Ftdi {
         flushCommandQueue()
     }
 
-    /// Write a byte and check its ACK
+    /// Schedule write of a byte and a check of its ACK bit into the command queue.
     ///
-    /// See UM10204, 3.1.5 Byte Format
+    /// - Note: the ACK check is a callback on the read of the ACK bit.
+    ///  If a NACK is detected, execution ends with a fatalError.
+    /// - Note:[UM10204, 3.1.5 Byte Format](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
+    /// - Precondition: bus is in ready state (clock low)
     func writeByteReadAck(byte: UInt8) {
-        // bus is in ready state (clock low)
-
         // UM10204, 3.1.3 Data Validity
         // The data on the SDA line must be stable during the HIGH period of the clock.
         // AN 135, 5.4 Serial Communications
@@ -131,28 +134,29 @@ public class FtdiI2C: Ftdi {
         writeWithClock(bits: 8, ofDatum: byte, during: .highClock)
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
 
-        let _ = readWithClock(bits: 1, during: .highClock, promiseCallback:
-        { ackBit in
-            guard ackBit[0] == 0 else {
-                // FIXME: throw is better for dynamic errors
-                fatalError("failed to get ACK writing byte")
-            }
-        })
+        let _ = readWithClock(bits: 1, during: .highClock,
+                              promiseCallback: { ackBit in
+                                guard ackBit[0] == 0 else {
+                                    // FIXME: throw is better for dynamic errors
+                                    fatalError("failed to get ACK writing byte")
+                                }})
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
-    /// Read a byte on the bus and respond in ACK time slot.
+    /// Schedule read of a byte on the bus and ACK time slot response into the command queue.
     ///
-    /// If last is not set, then this function will ACK the byte receipt
+    /// - Parameter last: if false, then this function will ACK the byte receipt
     /// and the node will send another byte during the next clock cycle.
     /// If last is true, this function will NACK (not acknowledge) on the bus, and the
     /// node will end its writing state and look for the next command.
-    /// UM10204: 3.1.6
-    func readByte(last: Bool = false) -> UInt8 {
+    /// - Note:[UM10204, 3.1.6 Acknowledge (ACK) and Not Acknowledge (NACK)](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
+    func readByte(last: Bool = false) -> CommandResponsePromise {
         enum Acknowledgment: UInt8 {
-            case ack = 0  // pull SDA low
-            // FIXME: use 0b1 or 0b1000_0000 depending on which bit gets sent:
-            case nack = 0xff // let SDA float high
+            /// pull SDA low
+            case ack = 0
+            /// let SDA float high
+            case nack = 0xff // FIXME: use 0b1 or 0b1000_0000 depending on which bit gets sent
+
         }
         let response: Acknowledgment = last ? .nack : .ack
 
@@ -163,19 +167,24 @@ public class FtdiI2C: Ftdi {
             queueI2CBus(state: .clockLow)
         }
 
-        flushCommandQueue()
-        return promisedResponse.value[0]
+        return promisedResponse
     }
 
     //========================
     // Logical layer
     //========================
 
+    /// Bit 0 of the control byte; indicates direction of subsequent bytes.
+    /// - Note:[UM10204 3.1.10: R/W̅ bit](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     enum RWIndicator: UInt8 {
         case read = 0x01
         case write = 0x00
     }
 
+    /// Create an I2C control byte.
+    /// - Parameter address: address of the node that should respond to this conversation.
+    /// - Parameter direction: write: data is sent from the initiating adapter;
+    /// read: responding node sends data during the clock provided by the initiator.
     func makeControlByte(address: UInt8, direction: RWIndicator) -> UInt8 {
         guard address < 0x80 else {
             fatalError("address out of range")
@@ -183,7 +192,9 @@ public class FtdiI2C: Ftdi {
         return address << 1 | direction.rawValue
     }
 
-    /// Write bytes without sending a 'stop'
+    /// Write bytes without sending a 'stop'.
+    /// - Parameter address: the node to which the data will be sent.
+    /// - Parameter data: bytes to send to the node.
     func write(address: UInt8, data: Data) {
         sendStart()
         let controlByte = makeControlByte(address: address, direction: .write)
@@ -191,8 +202,12 @@ public class FtdiI2C: Ftdi {
         for byte in segment {
             writeByteReadAck(byte: byte)
         }
+        flushCommandQueue()
     }
 
+    /// Read bytes without sending a 'stop'.
+    /// - Parameter address: the node from which data should be read.
+    /// - Parameter count: the number of bytes to read.
     func read(address: UInt8, count: Int) -> Data {
         guard count > 0 else {
             fatalError("read request must be for at least one byte")
@@ -201,12 +216,14 @@ public class FtdiI2C: Ftdi {
         let controlByte = makeControlByte(address: address, direction: .read)
         writeByteReadAck(byte: controlByte)
 
-        var data = Data()
+        var promises: [CommandResponsePromise] = []
         for _ in 0 ..< (count - 1) {
-            data.append(readByte())
+            promises.append(readByte())
         }
-        data.append(readByte(last: true))
+        promises.append(readByte(last: true))
 
-        return data
+        flushCommandQueue()
+        let bytes = promises.map {$0.value[0]}
+        return Data(bytes)
     }
 }
