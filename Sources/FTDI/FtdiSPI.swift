@@ -34,7 +34,9 @@ public class FtdiSPI {
     ///
     /// Definition of idle for the SPI mode is defined in `SPIModeSpec`.
     func setSPIIdle() {
-        serialEngine.queueDataBits(values: mode.busAtIdle.pinValues, outputMask: Ftdi.SerialPins.outputs.rawValue, pins: .lowBytes)
+        serialEngine.queueDataBits(values: mode.busAtIdle.pinValues,
+                                   outputMask: Ftdi.SerialPins.outputs.rawValue,
+                                   pins: .lowBytes)
     }
 
     /// Push data to the SPI bus.
