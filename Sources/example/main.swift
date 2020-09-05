@@ -11,7 +11,7 @@ import Foundation
 import LibUSB
 import FTDI
 
-do { // hoping block scope triggers FtdiSPI.deinit
+do { // use a block to trigger de-inits at the end of the block scope.
     let usbSubsystem = USBBus()
     let ftdiDevice = try usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,
