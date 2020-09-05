@@ -9,13 +9,16 @@ import Foundation
 import CLibUSB
 
 
+/// Bridge to the C library [libusb](https://libusb.info) functions imported by CLibUSB.
+///
+///
 public class USBBus {
     enum UsbError: Error {
         case noDeviceMatched
         case deviceCriteriaNotUnique
     }
     
-    let ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
+    var ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
     
 
     public func findDevice(idVendor: Int?, idProduct: Int?) throws -> USBDevice {
@@ -79,7 +82,7 @@ public class USBBus {
         // FIXME: how to do this better, and where?
         logger.logLevel = .trace
         
-        let resultRaw = libusb_init(nil)
+        let resultRaw = libusb_init(&ctx) // deinit: libusb_exit
         let result = libusb_error(rawValue: resultRaw)
         guard result == LIBUSB_SUCCESS else {
             let msg = String(cString: libusb_strerror(result))
