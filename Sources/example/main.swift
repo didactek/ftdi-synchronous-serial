@@ -24,7 +24,7 @@ do { // hoping block scope triggers FtdiSPI.deinit
     bus.write(data: data)
     #else
     let bus = try! FtdiI2C(ftdiAdapter: ftdiDevice)
-    let radio = try! FtdiI2CDevice(bus: bus, nodeAddress: 0x60)
+    let radio = try! FtdiI2CDevice(busHost: bus, nodeAddress: 0x60)
     let status = radio.read(count: 5)
     print(status.map {String($0, radix: 16)})
     #endif
