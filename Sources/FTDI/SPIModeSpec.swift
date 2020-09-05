@@ -9,7 +9,27 @@
 
 import Foundation
 
+/// Represents the state of the bus that is managed by the clock coordinator. The return data line is only
+/// read by the coordinator.
+struct SPIBusState {
+    enum VoltageLevel {
+        /// Low / -v / 0
+        case low
+        /// High / +v / 1
+        case high
+    }
+
+    /// Serial clock output (SCLK)
+    let sclk: VoltageLevel
+    /// Data sent by the clock coordinator.
+    /// - Remark: may be labeled "MOSI" on boards or documentation, but please avoid this acronym.
+    /// Adafruit adopts the backronym "Microprocessor out, serial in," but it's awkward.
+    let outgoingData: VoltageLevel
+}
+
 /// SPI Modes and their specifications.
+///
+/// SPI is an ad-hoc protocol. Many details available at the [Wikipedia SPI entry](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface).
 enum SPIModeSpec {
     case mode0
     #if false  // remainder not currently implemented
@@ -26,13 +46,11 @@ enum SPIModeSpec {
         }
     }
 
-    /// clock and dataOut values for an idle bus.
-    /// (as a bit field)
-    // FIXME: how to make this implementation-independent so this can be moved to a specification-only file?
-    var busAtIdle: UInt8 {
+    /// Clock and outgoing data values for an idle bus.
+    var busAtIdle: SPIBusState {
         switch self {
         case .mode0:
-            return 0
+            return SPIBusState(sclk: .low, outgoingData: .low)
         }
     }
 }

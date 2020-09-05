@@ -12,7 +12,6 @@ import LibUSB
 
 /// Use an FTDI FT232H to communicate with devices using SPI (Serial Peripheral Interface).
 ///
-/// SPI is an ad-hoc protocol. Many details available at the [Wikipedia SPI entry](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface).
 /// - Important: Current implementation does not support read or loopback. It is push-only.
 public class FtdiSPI {
     let serialEngine: Ftdi
@@ -35,7 +34,7 @@ public class FtdiSPI {
     ///
     /// Definition of idle for the SPI mode is defined in `SPIModeSpec`.
     func setSPIIdle() {
-        serialEngine.queueDataBits(values: mode.busAtIdle, outputMask: Ftdi.SerialPins.outputs.rawValue, pins: .lowBytes)
+        serialEngine.queueDataBits(values: mode.busAtIdle.pinValues, outputMask: Ftdi.SerialPins.outputs.rawValue, pins: .lowBytes)
     }
 
     /// Push data to the SPI bus.
@@ -43,5 +42,20 @@ public class FtdiSPI {
     /// Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
     public func write(data: Data) {
         serialEngine.writeWithClock(data: data, during: mode.writeWindow)
+    }
+}
+
+
+extension SPIBusState {
+    /// Adapt SPIBusState terminology to MPSSE serial pin assignments.
+    var pinValues: UInt8 {
+        var value = UInt8(0)
+        if self.sclk == .high {
+            value += Ftdi.SerialPins.clock.rawValue
+        }
+        if self.outgoingData == .high {
+            value += Ftdi.SerialPins.dataOut.rawValue
+        }
+        return value
     }
 }
