@@ -36,9 +36,9 @@ struct EndpointAddress {
 public class USBDevice {
     
     enum USBError: Error {
-        case bindingDeviceHandle
-        case getConfiguration
-        case claimInterface
+        case bindingDeviceHandle(String)
+        case getConfiguration(String)
+        case claimInterface(String)
     }
     
     let subsystem: USBBus // keep the subsytem alive
@@ -49,33 +49,32 @@ public class USBDevice {
     var usbWriteTimeout: UInt32 = 5000  // FIXME
     let writeEndpoint: EndpointAddress
     let readEndpoint: EndpointAddress
-
-
+    
+    
     init(subsystem: USBBus, device: OpaquePointer) throws {
         self.subsystem = subsystem
         self.device = device
-
-        let result = libusb_open(device, &handle)  // deinit: libusb_close
-        guard result == 0 else {
-            throw USBError.bindingDeviceHandle
+        
+        USBBus.checkCall(libusb_open(device, &handle)) { msg in  // deinit: libusb_close
+            throw USBError.bindingDeviceHandle(msg)
         }
         
         var configurationPtr: UnsafeMutablePointer<libusb_config_descriptor>? = nil
         defer {
             libusb_free_config_descriptor(configurationPtr)
         }
-        guard libusb_get_active_config_descriptor(device, &configurationPtr) == 0 else {
-            throw USBError.getConfiguration
+        USBBus.checkCall(libusb_get_active_config_descriptor(device, &configurationPtr)) { msg in
+            throw USBError.getConfiguration(msg)
         }
         guard let configuration = configurationPtr else {
-            throw USBError.getConfiguration
+            throw USBError.getConfiguration("null configuration")
         }
         let configurationIndex = 0
         let interfacesCount = configuration[configurationIndex].bNumInterfaces
         logger.debug("there are \(interfacesCount) interfaces on this device")
 
-        guard libusb_claim_interface(handle, interfaceNumber) == 0 else {  // deinit: libusb_release_interface
-            throw USBError.claimInterface
+        USBBus.checkCall(libusb_claim_interface(handle, interfaceNumber)) { msg in  // deinit: libusb_release_interface
+            throw USBError.claimInterface(msg)
         }
         let interface = configuration[configurationIndex].interface[Int(interfaceNumber)]
 

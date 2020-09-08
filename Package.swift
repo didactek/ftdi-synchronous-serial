@@ -41,7 +41,7 @@ let package = Package(
             pkgConfig: "libusb-1.0",
             providers: [
                 .brew(["libusb"]),
-                .apt(["libusb"]),
+                .apt(["libusb-1.0-0-dev"]),
             ]
         ),
         .testTarget(
