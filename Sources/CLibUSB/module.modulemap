@@ -1,5 +1,4 @@
 module CLibUSB [system] {
   header "CLibUSBUmbrella.h"
-  link "usb"
   export *
 }
