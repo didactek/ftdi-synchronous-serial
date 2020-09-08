@@ -75,7 +75,15 @@ public class USBDevice {
         let interfacesCount = configuration[configurationIndex].bNumInterfaces
         logger.debug("there are \(interfacesCount) interfaces on this device")
 
+        // On linux, the 'ftdi_sio' driver will likely be loaded for the FTDI device.
+        // Since we aren't using the FTDI in UART mode, ask libusb to unload this driver
+        // while we are using the device.
+        // This seesm to be OK to do on macOS
+        libusb_set_auto_detach_kernel_driver(handle, 1 /* non-zero is 'yes: enable' */)
+
         USBBus.checkCall(libusb_claim_interface(handle, interfaceNumber)) { msg in  // deinit: libusb_release_interface
+            // FIXME: "Resource Busy" on Linux may be the ftdi_sio driver being associated with the device.
+            // Proper setup should fix this. Proper setup being...????
             throw USBError.claimInterface(msg)
         }
         let interface = configuration[configurationIndex].interface[Int(interfaceNumber)]
