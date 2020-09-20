@@ -8,8 +8,7 @@
 /// I2C modes.
 ///
 /// Properties provide timing specifications and other mode-dependent attirbutes of the protocol.
-/// See: UM10204: I2C-bus specification and user manual
-/// https://www.nxp.com/docs/en/user-guide/UM10204.pdf
+/// See: [UM10204: I2C-bus specification and user manual](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
 /// Table 10. Characteristics of the SDA and SCL bus lines for Standard, Fast, and Fast-mode Plus I2C-bus devices
 /// Table 12. Characteristics of the SDAH, SCLH, SDA and SCL bus lines for Hs-mode I2C-bus devices[
 enum I2CModeSpec {

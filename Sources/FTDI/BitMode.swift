@@ -9,7 +9,7 @@ import Foundation
 
 /// FTDI Bit Mode: major operational modes of the FTDI family of devices.
 ///
-/// - Note:[Reference] D2XX Programmer's Guide, 5.3
+/// See [D2XX Programmer's Guide](https://www.ftdichip.com/Support/Documents/ProgramGuides/D2XX_Programmer%27s_Guide(FT_000071).pdf) Section 5.3
 enum BitMode: UInt16 {
     /// Reset.
     case reset = 0x00

@@ -9,10 +9,10 @@ import Foundation
 
 /// Relationship between clock state and valid data timing.
 enum DataWindow {
-    /// transition to +ve; rising edge
+    /// Transition to +ve; rising edge.
     case risingEdge
-    /// transition to -ve; falling edge
+    /// Transition to -ve; falling edge.
     case fallingEdge
-    /// while clock is high
+    /// While clock is high.
     case highClock
 }
