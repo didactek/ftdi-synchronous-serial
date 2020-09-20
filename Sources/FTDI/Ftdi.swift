@@ -439,7 +439,7 @@ public class Ftdi {
 
     /// Cycle the clock 1-8 times, reading bits during the specificed clock phase. Command is queued.
     ///
-    /// Returns: promise of read data that will be fullfilled when flushCommandQueue assembles results.
+    /// - Returns: promise of read data that will be fullfilled when flushCommandQueue assembles results.
     ///
     /// If provided, the callback is attached to the promise, allowing things
     /// like checking ACK to be performed while the response is being decoded.
@@ -519,7 +519,7 @@ public class Ftdi {
     /// - Parameter lowMask: bit field for pins; 1 = float on 'high'; 0 = actively pull high on 'high'
     /// - Parameter highMask: bit field for pins;1 = float on 'high'; 0 = actively pull high on 'high'
     ///
-    /// Note:[Reference] AN 108 7.1 Set I/O to only drive on a ‘0’ and tristate on a ‘1’
+    /// [AN 108](https://www.ftdichip.com/Support/Documents/AppNotes/AN_108_Command_Processor_for_MPSSE_and_MCU_Host_Bus_Emulation_Modes.pdf) Section: 7.1 Set I/O to only drive on a ‘0’ and tristate on a ‘1’
     func setTristate(lowMask: UInt8, highMask: UInt8) {
         let pinSpec = Data([lowMask, highMask])
         callMPSSE(command: .onlyDriveZero, arguments: pinSpec)

@@ -12,6 +12,8 @@ import LibUSB
 
 /// Use an FTDI FT232H to communicate with devices using SPI (Serial Peripheral Interface).
 ///
+/// - Important: The FTDI 3.3V output may not generate enough signal for a 5V SPI device. Watch this
+/// space for more data on this potential problem.
 /// - Important: Current implementation does not support read or loopback. It is push-only.
 public class FtdiSPI {
     let serialEngine: Ftdi
@@ -41,7 +43,7 @@ public class FtdiSPI {
 
     /// Push data to the SPI bus.
     ///
-    /// Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
+    /// - Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
     public func write(data: Data) {
         serialEngine.writeWithClock(data: data, during: mode.writeWindow)
     }
