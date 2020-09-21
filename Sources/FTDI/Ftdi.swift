@@ -11,7 +11,7 @@ import Foundation
 import Logging
 import LibUSB
 
-var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
+private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
 
 
 
@@ -24,6 +24,11 @@ var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
 /// In serial clocking mode, the remaining pins can be used for GPIO.
 /// Protocols that require "chip select" or other signals can be implemented by assigning any of the remaining
 /// pins for these functions and managing the pin state explicitly.
+///
+/// ## Referencecs
+/// - [FT232H Datasheet](https://www.ftdichip.com/Support/Documents/DataSheets/ICs/DS_FT232H.pdf)
+/// - [AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes](https://www.ftdichip.com/Support/Documents/AppNotes/AN_108_Command_Processor_for_MPSSE_and_MCU_Host_Bus_Emulation_Modes.pdf)
+/// - [AN_135 FTDI MPSSE Basics Version 1.1](https://www.ftdichip.com/Support/Documents/AppNotes/AN_135_MPSSE_Basics.pdf)
 public class Ftdi {
     public static let defaultIdVendor = 0x0403
     public static let defaultIdProduct = 0x6014
@@ -91,8 +96,10 @@ public class Ftdi {
 
 
 
-    // AN_108: Command Processor for MPSSE and MCU Host Bus Emulation Modes
-    // Ch 3: Command Definitions
+    /// MPSSE Commands.
+    ///
+    /// See  [AN_108 Command Processor for MPSSE  and MCU Host Bus Emulation Modes](https://www.ftdichip.com/Support/Documents/AppNotes/AN_108_Command_Processor_for_MPSSE_and_MCU_Host_Bus_Emulation_Modes.pdf)
+    /// Ch 3: Command Definitions
     enum MpsseCommand: UInt8 {
         // 3.2 Data Shifting (sending serial data synchronized with clock)
         // Pve == +ve == rising edge

@@ -8,8 +8,10 @@
 //
 
 import Foundation
+import Logging
 import LibUSB
 
+private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2c")
 
 /// Use an FTDI FT232H to communicate with devices using I2C.
 ///
@@ -23,6 +25,7 @@ public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
 
     public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil) throws {
+        logger.logLevel = .trace
         self.mode = .fast
         try super.init(ftdiAdapter: ftdiAdapter)
 
@@ -101,6 +104,7 @@ public class FtdiI2C: Ftdi {
         }
         queueI2CBus(state: I2CBusState(sda: .zero, scl: .zero))  // FIXME: .clockLow might be both functionally equivalent and more clear?
         flushCommandQueue()
+        logger.trace("START condition set")
     }
 
     /// Signal the end of communications on a bus.
@@ -116,6 +120,7 @@ public class FtdiI2C: Ftdi {
             queueI2CBus(state: .idle)
         }
         flushCommandQueue()
+        logger.debug("STOP condition set")
     }
 
     /// Schedule write of a byte and a check of its ACK bit into the command queue.
@@ -131,6 +136,7 @@ public class FtdiI2C: Ftdi {
         // has oscilloscope example of 0x10: byte out using MSB/rising
         // By starting to set SDA with the clock low, SDA is stable when the clock goes high,
         // thus fulfilling the spec.
+        logger.trace("Queuing write 0x\(String(byte, radix: 16))")
         writeWithClock(bits: 8, ofDatum: byte, during: .highClock)
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
 
@@ -139,7 +145,9 @@ public class FtdiI2C: Ftdi {
                                 guard ackBit[0] == 0 else {
                                     // FIXME: throw is better for dynamic errors
                                     fatalError("failed to get ACK writing byte")
-                                }})
+                                }
+                                logger.trace("ACK of write 0x\(String(byte, radix: 16)) accepted")
+                              })
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
     }
 
@@ -160,7 +168,11 @@ public class FtdiI2C: Ftdi {
         }
         let response: Acknowledgment = last ? .nack : .ack
 
-        let promisedResponse = readWithClock(bits: 8, during: .highClock)
+        let promisedResponse = readWithClock(bits: 8, during: .highClock) { byteIn in
+            let hex = String(byteIn[0], radix: 16)
+            let plannedAck = last ? "NACK" : "ACK"
+            logger.trace("Read byte 0x\(hex); planned response is \(plannedAck)")
+        }
         writeWithClock(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
         holdDelay {  // FIXME: this seems spurious given the clocked write of the (n)ack.
@@ -196,13 +208,15 @@ public class FtdiI2C: Ftdi {
     /// - Parameter address: the node to which the data will be sent.
     /// - Parameter data: bytes to send to the node.
     func write(address: UInt8, data: Data) {
+        logger.debug("writing \(data.count) bytes")
         sendStart()
         let controlByte = makeControlByte(address: address, direction: .write)
-        let segment = Data([controlByte]) + data
-        for byte in segment {
+        writeByteReadAck(byte: controlByte)
+        for byte in data {
             writeByteReadAck(byte: byte)
         }
         flushCommandQueue()
+        logger.trace("done writing \(data.count) bytes")
     }
 
     /// Read bytes without sending a 'stop'.
@@ -212,6 +226,7 @@ public class FtdiI2C: Ftdi {
         guard count > 0 else {
             fatalError("read request must be for at least one byte")
         }
+        logger.debug("reading \(count) bytes")
         sendStart()
         let controlByte = makeControlByte(address: address, direction: .read)
         writeByteReadAck(byte: controlByte)
@@ -224,6 +239,7 @@ public class FtdiI2C: Ftdi {
 
         flushCommandQueue()
         let bytes = promises.map {$0.value[0]}
+        logger.trace("done reading \(count) bytes")
         return Data(bytes)
     }
 }
