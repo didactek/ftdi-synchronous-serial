@@ -12,6 +12,8 @@ import LibUSB
 ///
 /// - Important: The FTDI 3.3V output may not generate enough signal for a 5V SPI device. Watch this
 /// space for more data on this potential problem.
+/// - Bug: The initial state of the FTDI brings some of the lines high, which may look like the start of a bit.
+/// Device power-up is an issue.
 /// - Important: Current implementation does not support read or loopback. It is push-only.
 public class FtdiSPI {
     let serialEngine: Ftdi
@@ -44,6 +46,7 @@ public class FtdiSPI {
     /// - Note: no acknowledgement is checked; data is assumed to have been successfully transmitted.
     public func write(data: Data) {
         serialEngine.writeWithClock(data: data, during: mode.writeWindow)
+        serialEngine.flushCommandQueue()
     }
 }
 
