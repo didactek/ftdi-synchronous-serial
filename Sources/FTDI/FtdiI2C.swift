@@ -25,9 +25,7 @@ public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
 
     /// - Parameter overrideClockHz: Frequency at which to drive the bus; if not supplied, default to maxium for the mode.
-    /// - Parameter supportClockStretching: Track modulation of the clock signal by responding devices.
-    /// Clock stretching uses MPSSE Adaptive Clocking and requries the clock signal to also be connected to GPIOL3 for monitoring.
-    public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil, supportClockStretching: Bool = false) throws {
+    public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil) throws {
         logger.logLevel = .trace
         self.mode = .fast
         try super.init(ftdiAdapter: ftdiAdapter)
@@ -42,14 +40,24 @@ public class FtdiI2C: Ftdi {
         if let overrideClockHz = overrideClockHz {
             clockSpeed = min(mode.maxClockSpeed, overrideClockHz)
         }
-        configureClocking(frequencyHz: clockSpeed, forThreePhase: true,
-                          useAdaptiveClock: supportClockStretching)
-
+        configureClocking(frequencyHz: clockSpeed, forThreePhase: true)
 
         queueI2CBus(state: .idle)
         flushCommandQueue()
     }
 
+    /// The FT232H doesn't support clock stretching. See notes for `Ftdi.enableAdaptiveClock`.
+    ///
+    /// A possible workaround while wriring might be to connect the clock to a GPIO input pin and then:
+    /// 1. Set the data line to the deisred output bit
+    /// 1. clockWaitOnLow, which will attempt to clock but only return when the bus has allowed the clock
+    /// 1. clock out the remaining 7 bits
+    ///
+    /// Something simiilar could be done for read?
+    /// This makes lots of assumptions about when the clock stretching might happen.
+    public func supportsClockStretching() -> Bool {
+        return false
+    }
 
     //========================
     // Physical bus managment

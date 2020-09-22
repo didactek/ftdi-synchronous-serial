@@ -288,7 +288,6 @@ public class Ftdi {
     ///
     /// - Parameter frequencyHz: The desired full cycle rate on the clock pin.
     /// - Parameter forThreePhase: Data valid through both edges of a half phase.
-    /// - Parameter useAdaptiveClock: Monitor clock signal in scenarios where connected devices modulate the clock.
     ///
     /// This sets up an internal clock that triggers each pin change managed by the
     /// data clocking logic. To drive a simple square wave, two triggers are needed per cycle:
@@ -300,16 +299,12 @@ public class Ftdi {
     ///
     /// Note: Configuring the clock does not immediately affect the clock pin; the clock pin is automatically
     /// cycled only during data clocking commands.
-    func configureClocking(frequencyHz: Int, forThreePhase: Bool = false,
-                           useAdaptiveClock: Bool = false) {
+    func configureClocking(frequencyHz: Int, forThreePhase: Bool = false) {
         let timedActionsPerCycle = forThreePhase ? 3 : 2
 
-        if useAdaptiveClock {
-            enableAdaptiveClock()
-        } else {
-            // AN 135 5.3.2 suggests explicitly setting even default values:
-            disableAdaptiveClock()  // default
-        }
+        // AN 135 5.3.2 suggests explicitly setting even default values:
+        disableAdaptiveClock()  // default
+
         if forThreePhase {
             enableThreePhaseClock()
         } else {
@@ -333,11 +328,19 @@ public class Ftdi {
 
     /// Enable Adaptive Clocking.
     ///
-    /// - Note: Documentation on Adaptive Clocking is hard to find. In some bus designs (notably I2C)
-    /// the clock signal is passively pulled up in its resting state and is actively pulled down during clocking.
-    /// Other devices may hold the clock down to pause clocking as a form a flow control. In these scenarios,
-    /// the adapter must monitor the clock signal and only move to the next serial bit if the clocking was not
-    /// prevented by another device on the bus. Adaptive clocking monitors the clock using GPIOL3 as an input pin.
+    /// In some bus designs the clock signal is passively pulled up in its resting state, is actively pulled
+    /// down while the bus is reserved, and released to form clock cycles.
+    /// Other devices may hold the clock down to pause clocking as a form a flow control.
+    /// In these scenarios, the adapter must monitor the clock signal and only move to the next serial bit
+    /// if the clocking was not prevented by another device on the bus.
+    ///
+    /// - Important: While I2C requires clock monitoring and uses this form of flow control in its
+    ///  "Clock Stretching," MPSSE Adaptive Clocking doesn't work for I2C. See
+    ///  [AN_411 FTx232H MPSSE I2C Master Example in C#](https://www.ftdichip.com/Support/Documents/AppNotes/AN_411_FTx232H%20MPSSE%20I2C%20Master%20Example%20in%20Csharp.pdf) Section 8.2 Clock Stretching
+    ///  for FTDI's strong warning against using Adaptive Clocking with I2C.
+    ///
+    /// - Note: Adaptive Clocking requries the clock signal to also be connected to input put GPIOL3
+    /// (ADBUS7 on the FT232H) for monitoring.
     func enableAdaptiveClock() {
         logger.debug("Enabling adaptive clock")
         callMPSSE(command: .enableAdaptiveClocking)
