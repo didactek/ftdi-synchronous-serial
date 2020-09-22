@@ -22,6 +22,10 @@ public class FtdiI2CDevice {
         self.address = UInt8(nodeAddress)
     }
 
+    public func supportsClockStretching() -> Bool {
+        return bus.supportsClockStretching()
+    }
+
     /// Write bytes to the device, preceded by a 'start' and followed by a 'stop'.
     public func write(data: Data) {
         bus.write(address: address, data: data)
