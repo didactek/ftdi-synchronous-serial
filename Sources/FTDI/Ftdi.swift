@@ -286,7 +286,9 @@ public class Ftdi {
 
     /// Set the clock output frequency. Set up 3-phase clocking if requested.
     ///
-    /// frequencyHz is the desired full cycle rate on the clock pin.
+    /// - Parameter frequencyHz: The desired full cycle rate on the clock pin.
+    /// - Parameter forThreePhase: Data valid through both edges of a half phase.
+    /// - Parameter useAdaptiveClock: Monitor clock signal in scenarios where connected devices modulate the clock.
     ///
     /// This sets up an internal clock that triggers each pin change managed by the
     /// data clocking logic. To drive a simple square wave, two triggers are needed per cycle:
@@ -298,14 +300,20 @@ public class Ftdi {
     ///
     /// Note: Configuring the clock does not immediately affect the clock pin; the clock pin is automatically
     /// cycled only during data clocking commands.
-    func configureClocking(frequencyHz: Int, forThreePhase: Bool = false) {
+    func configureClocking(frequencyHz: Int, forThreePhase: Bool = false,
+                           useAdaptiveClock: Bool = false) {
         let timedActionsPerCycle = forThreePhase ? 3 : 2
 
-        // AN 135 5.3.2 suggests explicitly setting even default values:
-        disableAdaptiveClock()  // default
+        if useAdaptiveClock {
+            enableAdaptiveClock()
+        } else {
+            // AN 135 5.3.2 suggests explicitly setting even default values:
+            disableAdaptiveClock()  // default
+        }
         if forThreePhase {
             enableThreePhaseClock()
         } else {
+            // AN 135 5.3.2 suggests explicitly setting even default values:
             disableThreePhaseClock()  // default
         }
 
@@ -319,10 +327,24 @@ public class Ftdi {
         let divisorSetting = UInt16(clamping: divisor)
         let divisorLE = withUnsafeBytes(of: divisorSetting.littleEndian) {Data($0)}
 
+        logger.debug("Setting clock divisor to \(divisorSetting)")
         callMPSSE(command: .setTCKDivisor, arguments: divisorLE)
     }
 
+    /// Enable Adaptive Clocking.
+    ///
+    /// - Note: Documentation on Adaptive Clocking is hard to find. In some bus designs (notably I2C)
+    /// the clock signal is passively pulled up in its resting state and is actively pulled down during clocking.
+    /// Other devices may hold the clock down to pause clocking as a form a flow control. In these scenarios,
+    /// the adapter must monitor the clock signal and only move to the next serial bit if the clocking was not
+    /// prevented by another device on the bus. Adaptive clocking monitors the clock using GPIOL3 as an input pin.
+    func enableAdaptiveClock() {
+        logger.debug("Enabling adaptive clock")
+        callMPSSE(command: .enableAdaptiveClocking)
+    }
+
     func disableAdaptiveClock() {
+        logger.debug("Disabling adaptive clock")
         callMPSSE(command: .disableAdaptiveClocking)
     }
 
@@ -333,6 +355,7 @@ public class Ftdi {
     /// Full cycle takes three triggers of the internal clock used for state transitions, so
     /// the setClock frequency needs to be adjusted appropriately.
     func enableThreePhaseClock() {
+        logger.debug("Enabling 3-phase clock")
         callMPSSE(command: .enableClock3Phase)
     }
 
@@ -343,6 +366,7 @@ public class Ftdi {
     /// the cycle is counted out, with the data being kept valid across the phase change and through
     /// the completion of the clock cycle.
     func disableThreePhaseClock() {
+        logger.debug("Disabling 3-phase clock")
         callMPSSE(command: .disableClock3Phase)
     }
 

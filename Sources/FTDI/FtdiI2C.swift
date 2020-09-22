@@ -24,7 +24,10 @@ private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2
 public class FtdiI2C: Ftdi {
     let mode: I2CModeSpec
 
-    public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil) throws {
+    /// - Parameter overrideClockHz: Frequency at which to drive the bus; if not supplied, default to maxium for the mode.
+    /// - Parameter supportClockStretching: Track modulation of the clock signal by responding devices.
+    /// Clock stretching uses MPSSE Adaptive Clocking and requries the clock signal to also be connected to GPIOL3 for monitoring.
+    public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil, supportClockStretching: Bool = false) throws {
         logger.logLevel = .trace
         self.mode = .fast
         try super.init(ftdiAdapter: ftdiAdapter)
@@ -39,7 +42,9 @@ public class FtdiI2C: Ftdi {
         if let overrideClockHz = overrideClockHz {
             clockSpeed = min(mode.maxClockSpeed, overrideClockHz)
         }
-        configureClocking(frequencyHz: clockSpeed, forThreePhase: true)
+        configureClocking(frequencyHz: clockSpeed, forThreePhase: true,
+                          useAdaptiveClock: supportClockStretching)
+
 
         queueI2CBus(state: .idle)
         flushCommandQueue()
@@ -201,6 +206,7 @@ public class FtdiI2C: Ftdi {
         guard address < 0x80 else {
             fatalError("address out of range")
         }
+        // FIXME: would a structure be better for debug logging? And more clear at write site?
         return address << 1 | direction.rawValue
     }
 
