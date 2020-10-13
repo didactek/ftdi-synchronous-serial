@@ -312,9 +312,13 @@ public class Ftdi {
             disableThreePhaseClock()  // default
         }
 
-        // FIXME: only low speed implemented currently
-        // FIXME: explicitly enabling/disabling divide-by-5 is recommended.
+        #if true  // prefer higher clock for better resolution
+        let internalClock = 60_000_000
+        callMPSSE(command: .disableClockDivide5)
+        #else
         let internalClock = 12_000_000
+        callMPSSE(command: .enableClockDivide5)
+        #endif
 
         /// AN 135 3.2.1
         let divisor = internalClock / (timedActionsPerCycle * frequencyHz) - 1
