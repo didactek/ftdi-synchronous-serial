@@ -81,7 +81,8 @@ public class USBBus {
 
 
     /// Information obtainable from the device descriptor without opening a connection to the device.
-    /// See [USB 2.0 9.6.1, Device](
+    ///
+    /// See [USB 2.0](https://www.usb.org/document-library/usb-20-specification) 9.6.1, Device
     struct DeviceDescription {
         /// libusb handle to the device
         let device: OpaquePointer
