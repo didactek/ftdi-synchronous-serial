@@ -1,4 +1,5 @@
 # ftdi-synchronous-serial
+
 FIXME: rename to "ftdi-sync-serial"?
 FIXME: watch for, minimize, or bridge jargon
 
@@ -7,7 +8,6 @@ and SPI applications, built on the portable C-library [libusb](https://libusb.in
 
 
 ## Overview
-
 
 This library provides
 - support for a USB-connected FTDI device in MPSSE mode
@@ -22,6 +22,7 @@ special devices.
 
 
 ## Requirements:
+
 - Swift Package Manager
 - Swift 5.2+
 - macOS or Linux
@@ -39,7 +40,9 @@ SPM Dependencies
 C library dependencies
 - libusb
 
+
 ## Goals:
+
 - make installation and use as easy as possible
 - minimize additions to the user's environment
 - use usermode drivers

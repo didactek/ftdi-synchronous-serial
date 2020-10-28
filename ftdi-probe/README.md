@@ -1,5 +1,8 @@
 # FTDI-Probe
 
+*Important:* This is documentation that supports the extensions in FtdiConfiguration.swift.
+Nothing in this directory is needed to build or use the FTDI library.
+
 Catalog USB control transfer operations performed by FTDI's D2XX library to change the
 operation of the FT232H serial controller.
 

@@ -27,7 +27,8 @@ public class USBBus {
         }
     }
 
-    var ctx: OpaquePointer? = nil // for sharing libusb contexts, init, etc.
+    /// Shared libusb context, for use in libusb_init, etc.
+    var ctx: OpaquePointer? = nil
 
     public init() {
         // FIXME: how to do this better, and where?
@@ -96,7 +97,9 @@ public class USBBus {
     }
 
     /// Read the device descriptor.
-    /// - libusb_get_device_descriptor
+    ///
+    /// - Parameter device: Handle from libusb_get_device_list.
+    /// - Note: Wraps libusb_get_device_descriptor.
     func deviceDetail(device: OpaquePointer) -> DeviceDescription {
         var descriptor = libusb_device_descriptor()
         let _ = libusb_get_device_descriptor(device, &descriptor)

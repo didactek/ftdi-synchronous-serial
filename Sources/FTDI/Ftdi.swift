@@ -25,7 +25,7 @@ private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-co
 /// Protocols that require "chip select" or other signals can be implemented by assigning any of the remaining
 /// pins for these functions and managing the pin state explicitly.
 ///
-/// ## Referencecs
+/// ## References
 /// - [FT232H Datasheet](https://www.ftdichip.com/Support/Documents/DataSheets/ICs/DS_FT232H.pdf)
 /// - [AN_108 Command Processor for MPSSE and MCU Host Bus Emulation Modes](https://www.ftdichip.com/Support/Documents/AppNotes/AN_108_Command_Processor_for_MPSSE_and_MCU_Host_Bus_Emulation_Modes.pdf)
 /// - [AN_135 FTDI MPSSE Basics Version 1.1](https://www.ftdichip.com/Support/Documents/AppNotes/AN_135_MPSSE_Basics.pdf)
@@ -35,6 +35,8 @@ public class Ftdi {
 
     let device: USBDevice
 
+    // FIXME: command queue and results processing could be factored out:
+    let commandQueueSemaphore = DispatchSemaphore(value: 1)
     var commandQueue = Data()
     var expectedResultCounts: [CommandResponsePromise] = []
 
@@ -209,7 +211,16 @@ public class Ftdi {
     }
 
 
+    /// Queue a MPSSE command for later batched execution.
+    ///
+    /// - Warning: Any callback must not attempt (in its own thread) to add tasks to the queue,
+    /// or deadlock will occur.
     private func queueMPSSE(command: MpsseCommand, arguments: Data, expectingReplyCount: Int, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
+        commandQueueSemaphore.wait()
+        defer {
+            commandQueueSemaphore.signal()
+        }
+
         commandQueue.append(command.rawValue)
         commandQueue.append(arguments)
 
@@ -231,6 +242,12 @@ public class Ftdi {
     func flushCommandQueue() {
         queueMPSSE(command: .sendImmediate, arguments: Data())
         logger.trace("bulk transfer writing \(pretty(commandQueue))")
+
+        commandQueueSemaphore.wait()
+        defer {
+            commandQueueSemaphore.signal()
+        }
+
         device.bulkTransferOut(msg: commandQueue)
         commandQueue.removeAll()
 
