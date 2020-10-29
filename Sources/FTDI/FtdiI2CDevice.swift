@@ -15,6 +15,9 @@ public class FtdiI2CDevice {
     let address: UInt8
     let bus: FtdiI2C
 
+    /// Semaphore held by public methods from I2C start to I2C stop.
+    let busReservedSemaphore = DispatchSemaphore(value: 1)
+
     /// - Parameter busHost: Host from which I2C clock/conversations originate.
     /// - Parameter nodeAddress: I2C address of the target device on the bus.
     public init(busHost: FtdiI2C, nodeAddress: Int) throws {
@@ -28,6 +31,10 @@ public class FtdiI2CDevice {
 
     /// Write bytes to the device, preceded by a 'start' and followed by a 'stop'.
     public func write(data: Data) {
+        busReservedSemaphore.wait()
+        defer {
+            busReservedSemaphore.signal()
+        }
         bus.write(address: address, data: data)
         bus.sendStop()
     }
@@ -37,6 +44,10 @@ public class FtdiI2CDevice {
     /// - Note: For devices that adopt a named register, address, or command idioms, use
     /// `writeAndRead` to send the name/address/command and read the response.
     public func read(count: Int) -> Data {
+        busReservedSemaphore.wait()
+        defer {
+            busReservedSemaphore.signal()
+        }
         let data = bus.read(address: address, count: count)
         bus.sendStop()
         return data
@@ -47,6 +58,10 @@ public class FtdiI2CDevice {
     /// - Parameter receiveCount: Number of bytes to read in the second conversation fragment.
     /// - Returns: Bytes read.
     public func writeAndRead(sendFrom: Data, receiveCount: Int) -> Data {
+        busReservedSemaphore.wait()
+        defer {
+            busReservedSemaphore.signal()
+        }
         bus.write(address: address, data: sendFrom)
         let data = bus.read(address: address, count: receiveCount)
         bus.sendStop()
