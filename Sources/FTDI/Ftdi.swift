@@ -169,17 +169,17 @@ public class Ftdi {
         case clockBitsNoData = 0x8e
         /// Clock for 8*(n+1) cycles with no data transfer
         case clockBytesNoData = 0x8f
-        /// Clock until GPIOL1 goes low **
+        /// Clock *until* GPIOL1 goes high.
         case clockWaitOnHigh = 0x94
-        /// Clock until GPIOL1 goes high **
+        /// Clock *until* GPIOL1 goes low.
         case clockWaitOnLow = 0x95
         /// Gate clock on RTCK read from GPIOL3 (ARM/JTAG)
         case enableAdaptiveClocking = 0x96
         /// Disable adaptive clocking
         case disableAdaptiveClocking = 0x97
-        /// Clock until GPIOL1 is high or 8*(n+1) cycles
+        /// Clock *until* GPIOL1 is high or 8*(n+1) cycles
         case clockWaitOnHighTimeout = 0x9c
-        /// Clock until GPIOL1 is low or 8*(n+1) cycles
+        /// Clock *until* GPIOL1 is low or 8*(n+1) cycles
         case clockWaitOnLowTimeout = 0x9d
 
         // 5 Instruction release/flow control
@@ -194,8 +194,6 @@ public class Ftdi {
 
         /// per AN_135; should provoke "0xFA Bad Command" error
         case bogus = 0xab
-
-        // ** documentation is unclear or inconsistent in its description
     }
 
 
