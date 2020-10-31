@@ -20,36 +20,44 @@ private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2
 /// in MPSSE mode, operations that set pins may change the pins used by the serial bus, corrupting serial
 /// operations.
 public class FtdiGPIO {
-    /// Mask for pins. Low order is ADBUS 0-7; high order is ACBUS 0-7.
-    public typealias PinMask = UInt16
+    /// Values or I/O direction for a bank (8 bits) of pins.
+    public typealias PinBankState = UInt8
+
+    /// Groups of I/O pins.
+    public enum PinBank {
+        // Note: this somewhat duplicates the Ftdi.GpioBlock enum, but that
+        // has cruft related to the details of using the API (like: "high" and
+        // "low" terminology. So we don't export that here.
+        case adbus
+        case acbus
+    }
 
     let serialEngine: Ftdi
-    /// Low byte output mask
-    let adbusOutputs: UInt8
-    /// Cache of low byte output values. Allows changes to individual bits without affecting other bits.
-    var adbusValues: UInt8
-    /// High byte output mask
-    let acbusOutputs: UInt8
-    /// Cache of high byte output values. Allows changes to individual bits without affecting other bits.
-    var acbusValues: UInt8
+    /// bus  pins assigned for output
+    let busOutputs : [PinBank: PinBankState]
 
-    public init(ftdiAdapter: USBDevice, outputPins: PinMask) throws {
+    /// Cache of  output values. Allows changes to individual bits without affecting other bits.
+    var busValues: [PinBank: PinBankState]
+
+    public init(ftdiAdapter: USBDevice, adOutputPins: PinBankState, acOutputPins: PinBankState) throws {
         logger.logLevel = .trace
-
         serialEngine = try Ftdi(ftdiAdapter: ftdiAdapter)
-        let (highBits, lowBits) = outputPins.quotientAndRemainder(dividingBy: 256)
-        adbusOutputs = UInt8(lowBits)
-        acbusOutputs = UInt8(highBits)
 
-        adbusValues = 0
-        acbusValues = 0
+        busOutputs = [
+            .acbus: acOutputPins,
+            .adbus: adOutputPins,
+        ]
+        busValues = [
+            .acbus: 0,
+            .adbus: 0,
+        ]
 
         // Configure:
         serialEngine.setBitmode(.reset)
         serialEngine.setLatency(mSec: 16)
 
-        serialEngine.setBitmode(.mpsse, outputPinMask: UInt8(lowBits))
-        serialEngine.queueDataBits(values: acbusValues, outputMask: acbusValues, pins: .acbus)
+        serialEngine.setBitmode(.mpsse, outputPinMask: busOutputs[.adbus]!)
+        serialEngine.queueDataBits(values: busValues[.acbus]!, outputMask: busOutputs[.acbus]!, pins: .acbus)
     }
 
     deinit {
@@ -58,35 +66,53 @@ public class FtdiGPIO {
 
     /// Change one of the output pins on the ADBUS.
     ///
+    /// - Parameter bank: Which bank to set pins in.
     /// - Parameter index: Bit position of the pin to change.
     /// - Parameter assertHigh: If true, set pin high (to 1); if false, to low/0.
-    public func writeADbus(index: Int, assertHigh: Bool) {
+    public func setPin(bank: PinBank, index: Int, assertHigh: Bool) {
         guard (0..<8).contains(index) else {
-            fatalError("index out of range")
+            fatalError("Pin index \(index) out of range")
         }
+        let bankMask = busOutputs[bank]!
         let mask = UInt8(1 << index)
-        guard (mask & adbusOutputs) != 0 else {
+        guard (mask & bankMask) != 0 else {
             fatalError("Pin \(index) was not configured as an output pin")
         }
 
+        var bankValues = busValues[bank]!
         if assertHigh {
-            adbusValues |= mask
+            bankValues |= mask
         } else {
-            adbusValues &= ~mask
+            bankValues &= ~mask
         }
+        busValues[bank] = bankValues
 
-        serialEngine.queueDataBits(values: adbusValues, outputMask: adbusOutputs, pins: .adbus)
+        serialEngine.queueDataBits(values: bankValues, outputMask: bankMask, pins: bank.gpioBlock())
         serialEngine.flushCommandQueue()
     }
 
     /// Read all the ADBUS pins.
     ///
+    /// - Parameter pins: Selector for pins to read.
     /// - Returns:UInt8 with each bit set according ot the value read on the pin.
     /// - Note: Both input and output pin values are returned.
     /// - Note: Pins that are not connected are liable to float and return random values.
-    public func readADbus() -> UInt8 {
-        let promise = serialEngine.queryDataBits(pins: .adbus)
+    public func readPins(pins: PinBank) -> PinBankState {
+        let block = pins.gpioBlock()
+        let promise = serialEngine.queryDataBits(pins: block)
         serialEngine.flushCommandQueue()
         return promise.value[0]
+    }
+}
+
+extension FtdiGPIO.PinBank {
+    /// Map PinBank values to corresponding aliases used by the MPSSE internals.
+    func gpioBlock() -> Ftdi.GpioBlock {
+        switch self {
+        case .acbus:
+            return .acbus
+        case .adbus:
+            return .adbus
+        }
     }
 }

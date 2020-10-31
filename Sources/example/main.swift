@@ -45,13 +45,13 @@ do { // use a block to trigger de-inits at the end of the block scope.
     print(status.map {String($0, radix: 16)})
     #else  // GPIO demonstration: read input pin connected to output pin.
     // Connect pins ADBUS 0 and ADBUS 6:
-    let gpio = try! FtdiGPIO(ftdiAdapter: ftdiDevice, outputPins: 1 << 0)
+    let gpio = try! FtdiGPIO(ftdiAdapter: ftdiDevice, adOutputPins: 1 << 0, acOutputPins: 0)
     let readMask: UInt8 = 1 << 6
-    gpio.writeADbus(index: 0, assertHigh: false)
-    print(gpio.readADbus() & readMask)
-    gpio.writeADbus(index: 0, assertHigh: true)
-    print(gpio.readADbus() & readMask)
-    gpio.writeADbus(index: 0, assertHigh: false)
-    print(gpio.readADbus() & readMask)
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    print(gpio.readPins(pins: .adbus) & readMask)
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: true)
+    print(gpio.readPins(pins: .adbus) & readMask)
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    print(gpio.readPins(pins: .adbus    ) & readMask)
     #endif
 }
