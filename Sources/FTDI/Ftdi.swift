@@ -138,9 +138,9 @@ public class Ftdi {
         // FIXME: add others as necessary/convenient
 
         // 3.6 Set / Read Data Bits High / Low Bytes
-        /// Change LSB GPIO output
+        /// Change LSB GPIO pin directions and set value for output pins.
         case setBitsLow = 0x80
-        /// Change MSB GPIO output
+        /// Change MSB GPIO pin direcitions and set value for output pins.
         case setBitsHigh = 0x82
         /// Get LSB GPIO output
         case getBitsLow = 0x81
@@ -537,10 +537,17 @@ public class Ftdi {
         // pins.
 
         // 3.6
-        /// ACBUS 7-0
-        case highBytes
-        /// ADBUS 7-0
-        case lowBytes
+        /// ACBUS 7-0; high byte
+        case highByte
+        /// ADBUS 7-0; low byte
+        case lowByte
+
+        /// Pins used for clock and clocked data (ADBUS, for the FT232H)
+        static let clockedBus: Self = .adbus
+        /// ACBUS pins are "high" bits.
+        static let acbus: Self = .highByte
+        /// ADBUS pins are "low" bits.
+        static let adbus: Self = .lowByte
 
         // By encoding the parallel semantics of opCodes, we can reduce the number of
         // specialized implementations of functions. Because the compiler will enforce
@@ -548,15 +555,25 @@ public class Ftdi {
         /// Opcode to use to set bits for this block.
         func cmdSetBits() -> MpsseCommand {
             switch self {
-            case .highBytes:
+            case .highByte:
                 return .setBitsHigh
-            case .lowBytes:
+            case .lowByte:
                 return .setBitsLow
+            }
+        }
+
+        /// Opcode for reading values on pins.
+        func cmdReadBits() -> MpsseCommand {
+            switch self {
+            case .highByte:
+                return .getBitsHigh
+            case .lowByte:
+                return .getBitsLow
             }
         }
     }
 
-    /// Define pins as input or output.
+    /// Define pins as input or output and set values of output pins.
     ///
     /// - Parameter value:desired levels on output pins
     /// - Parameter outputMask: bitwise indicator of pin use; 1 marks pin as an output
@@ -566,6 +583,13 @@ public class Ftdi {
         let pinSpec = Data([values, outputMask])
         queueMPSSE(command: cmd, arguments: pinSpec)
     }
+
+    /// Read values on input pns.
+    func queryDataBits(pins: GpioBlock) -> CommandResponsePromise {
+        let cmd = pins.cmdReadBits()
+        return queueMPSSE(command: cmd, arguments: Data(), expectingReplyCount: 1)
+    }
+
 
     /// Allow output pins to float on '1' (to be pulled up by bus or sunk down by other devices)
     ///

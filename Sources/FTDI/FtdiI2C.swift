@@ -100,7 +100,7 @@ public class FtdiI2C: Ftdi {
 
         queueDataBits(values: floatingPins.rawValue,
                       outputMask: SerialPins.outputs.rawValue,
-                      pins: .lowBytes)
+                      pins: .clockedBus)
     }
 
     /// Signal the start of communications on a bus.

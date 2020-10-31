@@ -3,8 +3,8 @@
 FIXME: rename to "ftdi-sync-serial"?
 FIXME: watch for, minimize, or bridge jargon
 
-A lean stack written primarily in Swift for using the FTDI FT232H USB-to-serial adapter in I2C
-and SPI applications, built on the portable C-library [libusb](https://libusb.info).
+A lean stack written primarily in Swift for using the FTDI FT232H USB-to-serial adapter in I2C,
+SPI, and GPIO applications, built on the portable C-library [libusb](https://libusb.info).
 
 
 ## Overview
