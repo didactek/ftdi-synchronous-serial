@@ -24,10 +24,30 @@ do { // use a block to trigger de-inits at the end of the block scope.
     let ledRed = Data([0xe8, 0x00, 0x00, 0xff])
     let data = ledPrologue + ledBlue + ledBlue + ledRed + ledBlue + ledBlue + ledEpilogue
     bus.write(data: data)
-    #else
+    #elseif false
     let bus = try! FtdiI2C(ftdiAdapter: ftdiDevice)
     let radio = try! FtdiI2CDevice(busHost: bus, nodeAddress: 0x60)
     let status = radio.read(count: 5)
     print(status.map {String($0, radix: 16)})
+    #else  // GPIO demonstration: read input pin connected to output pin.
     #endif
+    // Connect pins ADBUS 0 and ADBUS 6:
+    let gpio = try! FtdiGPIO(ftdiAdapter: ftdiDevice, adOutputPins: 1 << 0, acOutputPins: 7)
+    let readMask: UInt8 = 1 << 6
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    print(gpio.readPins(pins: .acbus) & readMask)
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: true)
+    print(gpio.readPins(pins: .acbus) & readMask)
+    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    print(gpio.readPins(pins: .acbus    ) & readMask)
+
+    for _ in 0..<100 {
+        for x in [2, 2, 2, 1, 1, 1, 0, 0, 0].shuffled() {
+            for y in 0...2 {
+                gpio.setPin(bank: .acbus, index: y, assertHigh: true)
+            }
+            gpio.setPin(bank: .acbus, index: x, assertHigh: false)
+            Thread.sleep(forTimeInterval: 0.7)
+        }
+    }
 }
