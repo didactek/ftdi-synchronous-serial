@@ -40,7 +40,7 @@ public class FtdiSPI {
     func setSPIIdle() {
         serialEngine.queueDataBits(values: mode.busAtIdle.pinValues,
                                    outputMask: Ftdi.SerialPins.outputs.rawValue,
-                                   pins: .lowBytes)
+                                   pins: .clockedBus)
     }
 
     /// Push data to the SPI bus.
