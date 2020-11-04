@@ -48,19 +48,16 @@ do { // use a block to trigger de-inits at the end of the block scope.
      // Connect pins ADBUS 0 and ADBUS 6:
     let gpio = try! FtdiGPIO(ftdiAdapter: ftdiDevice, adOutputPins: 1 << 0, acOutputPins: 7)
     let readMask: UInt8 = 1 << 6
-    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    gpio.setPins(bank: .adbus, values: 0)
     print(gpio.readPins(pins: .acbus) & readMask)
-    gpio.setPin(bank: .adbus, index: 0, assertHigh: true)
+    gpio.setPins(bank: .adbus, values: 1)
     print(gpio.readPins(pins: .acbus) & readMask)
-    gpio.setPin(bank: .adbus, index: 0, assertHigh: false)
+    gpio.setPins(bank: .adbus, values: 0)
     print(gpio.readPins(pins: .acbus    ) & readMask)
 
-    for _ in 0..<100 {
-        for x in [2, 2, 2, 1, 1, 1, 0, 0, 0].shuffled() {
-            for y in 0...2 {
-                gpio.setPin(bank: .acbus, index: y, assertHigh: true)
-            }
-            gpio.setPin(bank: .acbus, index: x, assertHigh: false)
+    for _ in 0..<10 {
+        for x in [1,2,3].shuffled() {
+            gpio.setPins(bank: .acbus, values: UInt8(255 & ~(1 << (x - 1))))
             Thread.sleep(forTimeInterval: 0.7)
         }
     }

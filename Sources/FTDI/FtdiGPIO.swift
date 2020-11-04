@@ -36,9 +36,6 @@ public class FtdiGPIO {
     /// bus  pins assigned for output
     let busOutputs : [PinBank: PinBankState]
 
-    /// Cache of  output values. Allows changes to individual bits without affecting other bits.
-    var busValues: [PinBank: PinBankState]
-
     public init(ftdiAdapter: USBDevice, adOutputPins: PinBankState, acOutputPins: PinBankState) throws {
         logger.logLevel = .trace
         serialEngine = try Ftdi(ftdiAdapter: ftdiAdapter)
@@ -47,47 +44,27 @@ public class FtdiGPIO {
             .acbus: acOutputPins,
             .adbus: adOutputPins,
         ]
-        busValues = [
-            .acbus: 0,
-            .adbus: 0,
-        ]
 
         // Configure:
         serialEngine.setBitmode(.reset)
         serialEngine.setLatency(mSec: 16)
 
         serialEngine.setBitmode(.mpsse, outputPinMask: busOutputs[.adbus]!)
-        serialEngine.queueDataBits(values: busValues[.acbus]!, outputMask: busOutputs[.acbus]!, pins: .acbus)
+        serialEngine.queueDataBits(values: 0, outputMask: busOutputs[.acbus]!, pins: .acbus)
     }
 
     deinit {
         serialEngine.setBitmode(.reset)
     }
 
-    /// Change one of the output pins on the ADBUS.
+    /// Change the output values on a bank of pins.
     ///
     /// - Parameter bank: Which bank to set pins in.
-    /// - Parameter index: Bit position of the pin to change.
-    /// - Parameter assertHigh: If true, set pin high (to 1); if false, to low/0.
-    public func setPin(bank: PinBank, index: Int, assertHigh: Bool) {
-        guard (0..<8).contains(index) else {
-            fatalError("Pin index \(index) out of range")
-        }
+    /// - Parameter values: Bits to use for output pins.
+    /// - Note: All pins configured for output are set at the same time.
+    public func setPins(bank: PinBank, values: PinBankState) {
         let bankMask = busOutputs[bank]!
-        let mask = UInt8(1 << index)
-        guard (mask & bankMask) != 0 else {
-            fatalError("Pin \(index) was not configured as an output pin")
-        }
-
-        var bankValues = busValues[bank]!
-        if assertHigh {
-            bankValues |= mask
-        } else {
-            bankValues &= ~mask
-        }
-        busValues[bank] = bankValues
-
-        serialEngine.queueDataBits(values: bankValues, outputMask: bankMask, pins: bank.gpioBlock())
+        serialEngine.queueDataBits(values: values, outputMask: bankMask, pins: bank.gpioBlock())
         serialEngine.flushCommandQueue()
     }
 
