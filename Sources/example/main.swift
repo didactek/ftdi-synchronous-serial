@@ -13,7 +13,7 @@ import FTDI
 
 do { // use a block to trigger de-inits at the end of the block scope.
     let usbSubsystem = USBBus()
-    let ftdiDevice = try usbSubsystem
+    let ftdiDevice = try! usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,
                     idProduct: Ftdi.defaultIdProduct)
 

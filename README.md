@@ -32,7 +32,6 @@ Mac requirements
 - pkg-config (from brew, for SPM to locate and validate installed libraries)
 - Xcode 11.6+ suggested
 
-
 SPM Dependencies
 - swift-log
 
@@ -50,7 +49,7 @@ C library dependencies
 - aspire to code that is readable and idiomatic
 
 
-## Usage Notes
+## Installation Notes
 
 ### Linux device permissions
 
