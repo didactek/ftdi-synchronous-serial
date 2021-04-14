@@ -1,7 +1,8 @@
 import XCTest
 
-import libusb_swiftTests
+import ftdi_synchronous_serialTests
 
 var tests = [XCTestCaseEntry]()
-tests += libusb_swiftTests.allTests()
+tests += ftdi_synchronous_serialTests.__allTests()
+
 XCTMain(tests)
