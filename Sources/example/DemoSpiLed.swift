@@ -9,7 +9,7 @@
 
 import Foundation
 
-import LibUSB
+import SimpleUSB
 import FTDI
 
 /// SPI demonstration: light up and fade a 72 LED strip.

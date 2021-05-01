@@ -11,17 +11,12 @@ let package = Package(
             name: "example",
             targets: ["example"]),
         .library(
-            name: "LibUSB",
-            targets: ["LibUSB"]),
-        .library(
             name: "FTDI",
             targets: ["FTDI"]),
-        .library(
-            name: "CLibUSB",
-            targets: ["CLibUSB"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
+        .package(url: "https://github.com/didactek/deft-simple-usb", "0.0.1" ..< "0.1.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
     ],
     targets: [
@@ -31,21 +26,13 @@ let package = Package(
             name: "example",
             dependencies: ["FTDI"]),
         .target(
-            name: "LibUSB",
-            dependencies: ["CLibUSB", .product(name: "Logging", package: "swift-log")]),
-        .target(
             name: "FTDI",
-            dependencies: ["LibUSB"]),
-        .systemLibrary(
-            name: "CLibUSB",
-            pkgConfig: "libusb-1.0",
-            providers: [
-                .brew(["libusb"]),
-                .apt(["libusb-1.0-0-dev"]),
-            ]
-        ),
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "PortableUSB", package: "deft-simple-usb"),
+            ]),
         .testTarget(
             name: "ftdi-synchronous-serialTests",
-            dependencies: ["LibUSB"]),
+            dependencies: [.product(name: "SimpleUSB", package: "deft-simple-usb")]),
     ]
 )

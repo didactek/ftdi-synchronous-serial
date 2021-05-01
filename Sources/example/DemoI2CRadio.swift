@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import LibUSB
+import SimpleUSB
 import FTDI
 
 /// I2C demonstration: read 5 bytes from TEA5767 FM tuner.

@@ -8,11 +8,11 @@
 //
 
 import Foundation
-import LibUSB
+import PortableUSB
 import FTDI
 
 do { // use a block to trigger de-inits at the end of the block scope.
-    let usbSubsystem = USBBus()
+    let usbSubsystem = PortableUSB.platformBus()
     let ftdiDevice = try! usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,
                     idProduct: Ftdi.defaultIdProduct)

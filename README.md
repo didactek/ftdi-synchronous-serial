@@ -9,7 +9,7 @@ SPI, and GPIO applications, built on the portable C-library [libusb](https://lib
 This library provides
 - support for a USB-connected FTDI device in MPSSE mode
 - implementations of I2C and SPI protocols
-- a small Swift bridge to libusb sufficient to support the above
+- uses deft-simple-usb for usermode access to the FTDI device
 
 Synchronous serial communication is data that is timed according to a separate clock
 signal. While the FTDI also supports asynchronous [UART] communications (such as RS-232),
@@ -20,19 +20,17 @@ special devices.
 ## Requirements
 
 - Swift Package Manager
-- Swift 5.2+
+- Swift 5.3+
 - macOS or Linux
 - for FTDI serial devices: an FT232H connected via USB
 
 Mac requirements
-- brew (for SPM to install libraries)
-- pkg-config (from brew, for SPM to locate and validate installed libraries)
-- Xcode 11.6+ suggested
+- macOS 10.15 (Catalina) or higher
 
 SPM Dependencies
 - swift-log
 
-C library dependencies
+Linux dependencies
 - libusb
 
 

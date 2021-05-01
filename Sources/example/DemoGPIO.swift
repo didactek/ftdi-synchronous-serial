@@ -9,7 +9,7 @@
 
 import Foundation
 
-import LibUSB
+import SimpleUSB
 import FTDI
 
 

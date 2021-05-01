@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import LibUSB
+import SimpleUSB
 
 /// Use an FTDI FT232H to communicate with devices using SPI (Serial Peripheral Interface).
 ///

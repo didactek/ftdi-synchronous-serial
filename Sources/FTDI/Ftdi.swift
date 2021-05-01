@@ -9,7 +9,7 @@
 
 import Foundation
 import Logging
-import LibUSB
+import SimpleUSB
 
 private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
 
