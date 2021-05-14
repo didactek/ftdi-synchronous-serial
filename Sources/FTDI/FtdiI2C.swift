@@ -109,6 +109,7 @@ public class FtdiI2C: Ftdi {
     /// then bring both low, signifying a reserved and ready bus.
     /// - Note:[UM10204: 3.1.4:](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     func sendStart() {
+        logger.trace("queuing START condition")
         holdDelay {
             queueI2CBus(state: .idle)
         }
@@ -117,7 +118,7 @@ public class FtdiI2C: Ftdi {
         }
         queueI2CBus(state: I2CBusState(sda: .zero, scl: .zero))  // FIXME: .clockLow might be both functionally equivalent and more clear?
         flushCommandQueue()
-        logger.trace("START condition set")
+        logger.trace("START condition flushed")
     }
 
     /// Signal the end of communications on a bus.
@@ -126,6 +127,7 @@ public class FtdiI2C: Ftdi {
     /// (Pins will remain high until a new conversation is started.)
     /// - Note:[UM10204: 3.1.4:](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     func sendStop() {
+        logger.trace("queuing STOP")
         holdDelay {
             queueI2CBus(state: I2CBusState(sda: .zero, scl: .float))
         }
@@ -133,7 +135,7 @@ public class FtdiI2C: Ftdi {
             queueI2CBus(state: .idle)
         }
         flushCommandQueue()
-        logger.debug("STOP condition set")
+        logger.trace("STOP condition flushed")
     }
 
     /// Schedule write of a byte and a check of its ACK bit into the command queue.
@@ -217,15 +219,26 @@ public class FtdiI2C: Ftdi {
         // FIXME: would a structure be better for debug logging? And more clear at write site?
         return address << 1 | direction.rawValue
     }
+    
+    /// Send a START and notify the device communications are intended for it.
+    /// - parameter direction: Indicate that host will be writing to or reading from the device
+    /// - throws If the device is not present and ready (does not ACK the prologue)
+    func addressDevice(address: UInt8, direction: RWIndicator) throws {
+        // FIXME: provide retry and timeout?
+        logger.trace("Addressing \(address)")
+        sendStart()
+        let controlByte = makeControlByte(address: address, direction: direction)
+        writeByteReadAck(byte: controlByte)  // FIXME: but throw on ack
+        flushCommandQueue()
+    }
 
     /// Write bytes without sending a 'stop'.
     /// - Parameter address: the node to which the data will be sent.
     /// - Parameter data: bytes to send to the node.
     func write(address: UInt8, data: Data) {
         logger.debug("writing \(data.count) bytes")
-        sendStart()
-        let controlByte = makeControlByte(address: address, direction: .write)
-        writeByteReadAck(byte: controlByte)
+        try! addressDevice(address: address, direction: .write)
+
         for byte in data {
             writeByteReadAck(byte: byte)
         }
@@ -241,9 +254,7 @@ public class FtdiI2C: Ftdi {
             fatalError("read request must be for at least one byte")
         }
         logger.debug("reading \(count) bytes")
-        sendStart()
-        let controlByte = makeControlByte(address: address, direction: .read)
-        writeByteReadAck(byte: controlByte)
+        try! addressDevice(address: address, direction: .read)
 
         var promises: [CommandResponsePromise] = []
         for _ in 0 ..< (count - 1) {
