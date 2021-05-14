@@ -33,10 +33,11 @@ public class FtdiI2CDevice {
     public func write(data: Data) {
         busReservedSemaphore.wait()
         defer {
+            bus.sendStop()
             busReservedSemaphore.signal()
         }
-        bus.write(address: address, data: data)
-        bus.sendStop()
+        // FIXME: I2CLink needs a mechanism to propagate failure
+        try? bus.write(address: address, data: data)
     }
 
     /// Read bytes from the device, preceded by a 'start' and followed by a 'stop'.
@@ -46,10 +47,11 @@ public class FtdiI2CDevice {
     public func read(count: Int) -> Data {
         busReservedSemaphore.wait()
         defer {
+            bus.sendStop()
             busReservedSemaphore.signal()
         }
-        let data = bus.read(address: address, count: count)
-        bus.sendStop()
+        // FIXME: I2CLink needs a mechanism to propagate failure
+        let data = (try? bus.read(address: address, count: count)) ?? Data()
         return data
     }
 
@@ -60,11 +62,17 @@ public class FtdiI2CDevice {
     public func writeAndRead(sendFrom: Data, receiveCount: Int) -> Data {
         busReservedSemaphore.wait()
         defer {
+            bus.sendStop()
             busReservedSemaphore.signal()
         }
-        bus.write(address: address, data: sendFrom)
-        let data = bus.read(address: address, count: receiveCount)
-        bus.sendStop()
-        return data
+        // FIXME: I2CLink needs a mechanism to propagate failure
+        do {
+            try bus.write(address: address, data: sendFrom)
+            let data = try bus.read(address: address, count: receiveCount)
+            return data
+        } catch {
+        }
+        // FIXME: I2CLink needs a mechanism to propagate failure
+        return Data()
     }
 }

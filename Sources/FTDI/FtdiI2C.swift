@@ -22,6 +22,9 @@ private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2
 /// - [Interfacing FT2232H Hi-Speed Devices to I2C Bus](https://www.ftdichip.com/Support/Documents/AppNotes/AN_113_FTDI_Hi_Speed_USB_To_I2C_Example.pdf)
 /// - [I²C at Wikipedia](https://en.wikipedia.org/wiki/I²C)
 public class FtdiI2C: Ftdi {
+    public enum I2CError : Error {
+        case nodeNotResponding
+    }
     let mode: I2CModeSpec
 
     /// - Parameter overrideClockHz: Frequency at which to drive the bus; if not supplied, default to maxium for the mode.
@@ -138,13 +141,12 @@ public class FtdiI2C: Ftdi {
         logger.trace("STOP condition flushed")
     }
 
-    /// Schedule write of a byte and a check of its ACK bit into the command queue.
+    /// Schedule write of a byte and an action on its ACK bit into the command queue.
     ///
-    /// - Note: the ACK check is a callback on the read of the ACK bit.
-    ///  If a NACK is detected, execution ends with a fatalError.
+    /// - parameter promiseCallback: action to perform on the ACK bit.
     /// - Note:[UM10204, 3.1.5 Byte Format](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
     /// - Precondition: bus is in ready state (clock low)
-    func writeByteReadAck(byte: UInt8) {
+    func writeByteReadAck(byte: UInt8, promiseCallback: @escaping (Data)->Void) {
         // UM10204, 3.1.3 Data Validity
         // The data on the SDA line must be stable during the HIGH period of the clock.
         // AN 135, 5.4 Serial Communications
@@ -156,14 +158,23 @@ public class FtdiI2C: Ftdi {
         queueI2CBus(state: .clockLow) // FIXME: why? isn't clock low & SDA released?
 
         let _ = readWithClock(bits: 1, during: .highClock,
-                              promiseCallback: { ackBit in
-                                guard ackBit[0] == 0 else {
-                                    // FIXME: throw is better for dynamic errors
-                                    fatalError("failed to get ACK writing byte")
-                                }
-                                logger.trace("ACK of write 0x\(String(byte, radix: 16)) accepted")
-                              })
+                              promiseCallback: promiseCallback)
         queueI2CBus(state: .clockLow)  // FIXME: why? clock cycle should return clock to low?
+    }
+
+    /// Schedule write of a byte and a check of its ACK bit into the command queue.
+    ///
+    /// - Note: the ACK check is a callback on the read of the ACK bit.
+    ///  If a NACK is detected, execution ends with a fatalError.
+    /// - Note:[UM10204, 3.1.5 Byte Format](https://www.nxp.com/docs/en/user-guide/UM10204.pdf)
+    /// - Precondition: bus is in ready state (clock low)
+    func writeByteReadAck(byte: UInt8) {
+        writeByteReadAck(byte: byte, promiseCallback: { ackBit in
+            guard ackBit[0] == 0 else {
+                // FIXME: throw is better for dynamic errors
+                fatalError("failed to get ACK writing byte")
+            }
+        })
     }
 
     /// Schedule read of a byte on the bus and ACK time slot response into the command queue.
@@ -219,25 +230,35 @@ public class FtdiI2C: Ftdi {
         // FIXME: would a structure be better for debug logging? And more clear at write site?
         return address << 1 | direction.rawValue
     }
-    
+
     /// Send a START and notify the device communications are intended for it.
     /// - parameter direction: Indicate that host will be writing to or reading from the device
     /// - throws If the device is not present and ready (does not ACK the prologue)
     func addressDevice(address: UInt8, direction: RWIndicator) throws {
-        // FIXME: provide retry and timeout?
         logger.trace("Addressing \(address)")
         sendStart()
+        var deviceReady = false
         let controlByte = makeControlByte(address: address, direction: direction)
-        writeByteReadAck(byte: controlByte)  // FIXME: but throw on ack
+        writeByteReadAck(byte: controlByte) {
+            ackBit in
+            if ackBit[0] == 0 {
+                deviceReady = true
+            }
+        }
         flushCommandQueue()
+        guard deviceReady else {
+            logger.debug("Device did not respond to control byte")
+            throw I2CError.nodeNotResponding
+        }
     }
 
     /// Write bytes without sending a 'stop'.
     /// - Parameter address: the node to which the data will be sent.
     /// - Parameter data: bytes to send to the node.
-    func write(address: UInt8, data: Data) {
+    /// - Throws If write is not successfully acknowledged.
+    func write(address: UInt8, data: Data) throws {
         logger.debug("writing \(data.count) bytes")
-        try! addressDevice(address: address, direction: .write)
+        try addressDevice(address: address, direction: .write)
 
         for byte in data {
             writeByteReadAck(byte: byte)
@@ -249,12 +270,13 @@ public class FtdiI2C: Ftdi {
     /// Read bytes without sending a 'stop'.
     /// - Parameter address: the node from which data should be read.
     /// - Parameter count: the number of bytes to read.
-    func read(address: UInt8, count: Int) -> Data {
+    /// - Throws If the node did not respond to the request.
+    func read(address: UInt8, count: Int) throws -> Data {
         guard count > 0 else {
             fatalError("read request must be for at least one byte")
         }
         logger.debug("reading \(count) bytes")
-        try! addressDevice(address: address, direction: .read)
+        try addressDevice(address: address, direction: .read)
 
         var promises: [CommandResponsePromise] = []
         for _ in 0 ..< (count - 1) {
