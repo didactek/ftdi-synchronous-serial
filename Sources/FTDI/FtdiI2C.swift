@@ -170,7 +170,13 @@ public class FtdiI2C: Ftdi {
     /// - Precondition: bus is in ready state (clock low)
     func writeByteReadAck(byte: UInt8) {
         writeByteReadAck(byte: byte, promiseCallback: { ackBit in
-            guard ackBit[0] == 0 else {
+            let bit = ackBit[0]
+            if bit > 1 {
+                // It is normal to receive random uninitialized upper bits, but
+                // report in case it is useful diagnosing a framing error.
+                logger.trace("ACK bit read returned out-of-range \(bit). Masking.")
+            }
+            guard bit & 1 == 0 else {
                 // FIXME: throw is better for dynamic errors
                 fatalError("failed to get ACK writing byte")
             }
@@ -197,7 +203,7 @@ public class FtdiI2C: Ftdi {
         let promisedResponse = readWithClock(bits: 8, during: .highClock) { byteIn in
             let hex = String(byteIn[0], radix: 16)
             let plannedAck = last ? "NACK" : "ACK"
-            logger.trace("Read byte 0x\(hex); planned response is \(plannedAck)")
+            logger.trace("Read byte 0x\(hex); scheduled response was \(plannedAck)")
         }
         writeWithClock(bits: 1, ofDatum: response.rawValue, during: .highClock)
 
@@ -241,13 +247,19 @@ public class FtdiI2C: Ftdi {
         let controlByte = makeControlByte(address: address, direction: direction)
         writeByteReadAck(byte: controlByte) {
             ackBit in
-            if ackBit[0] == 0 {
+            let bit = ackBit[0]
+            if bit > 1 {
+                // It is normal to receive random uninitialized upper bits, but
+                // report in case it is useful diagnosing a framing error.
+                logger.trace("ACK bit read returned out-of-range \(bit). Masking.")
+            }
+            if bit & 1 == 0 {
                 deviceReady = true
             }
         }
         flushCommandQueue()
         guard deviceReady else {
-            logger.debug("Device did not respond to control byte")
+            logger.debug("Device \(address) did not respond to control byte")
             throw I2CError.nodeNotResponding
         }
     }

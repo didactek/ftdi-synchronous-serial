@@ -497,8 +497,11 @@ public class Ftdi {
     /// If provided, the callback is attached to the promise, allowing things
     /// like checking ACK to be performed while the response is being decoded.
     ///
-    /// Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB
-    /// and shifted on each entry. May require shift of (8 minus 'bits') to place into low bits.
+    /// - Warning: semantics of reading LSB format seem slightly strange: bits are populated from MSB
+    /// and shifted on each entry. May require the callback to shift (8 minus 'bits') to place into low bits.
+    ///
+    /// - Warning: Reading less than a full byte *seems* to sometimes have non-zero data in the non-read bits.
+    /// The callback may need to mask in the case of a MSB read.
     func readWithClock(bits: Int, during window: DataWindow, bitOrder: BitOrder = .msb, promiseCallback: ((Data)->Void)? = nil) -> CommandResponsePromise {
         guard bits > 0 else {
             fatalError("write must send minimum of one bit")
