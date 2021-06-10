@@ -8,10 +8,10 @@
 //
 
 import Foundation
-import Logging
+import DeftLog
 import SimpleUSB
 
-private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
+private let logger = DeftLog.logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-core")
 
 
 
@@ -53,7 +53,6 @@ public class Ftdi {
 
     init(ftdiAdapter: USBDevice) throws {
         self.device = ftdiAdapter
-        logger.logLevel = .trace
 
         // AN_135_MPSSE_Basics lifetime: 4.1 Confirm device existence and open file handle
         configurePorts()

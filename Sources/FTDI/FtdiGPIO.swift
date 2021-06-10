@@ -8,11 +8,8 @@
 //
 
 import Foundation
-import Logging
-
 import SimpleUSB
 
-private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2c")
 
 /// Use an FTDI MPSSE adapter to read or control pins in GPIO mode.
 ///
@@ -37,7 +34,6 @@ public class FtdiGPIO {
     let busOutputs : [PinBank: PinBankState]
 
     public init(ftdiAdapter: USBDevice, adOutputPins: PinBankState, acOutputPins: PinBankState) throws {
-        logger.logLevel = .trace
         serialEngine = try Ftdi(ftdiAdapter: ftdiAdapter)
 
         busOutputs = [

@@ -43,6 +43,12 @@ Linux dependencies
 - use Swift as much as possible
 - aspire to code that is readable and idiomatic
 
+## Usage
+
+### Logging
+
+Loggers are instantiated using the [deft-log](https://github.com/didactek/deft-log.git) library
+using the label prefix `com.didactek.ftdi-synchronous-serial`.
 
 ## Installation Notes
 

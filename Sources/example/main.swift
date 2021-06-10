@@ -8,10 +8,16 @@
 //
 
 import Foundation
+import DeftLog
 import PortableUSB
 import FTDI
 
 do { // use a block to trigger de-inits at the end of the block scope.
+    DeftLog.settings = [
+        ("com.didactek.ftdi-synchronous-serial", .trace),
+        ("com.didactek", .debug),
+    ]
+
     let usbSubsystem = PortableUSB.platformBus()
     let ftdiDevice = try! usbSubsystem
         .findDevice(idVendor: Ftdi.defaultIdVendor,

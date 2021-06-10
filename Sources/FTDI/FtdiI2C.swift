@@ -8,10 +8,10 @@
 //
 
 import Foundation
-import Logging
+import DeftLog
 import SimpleUSB
 
-private var logger = Logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2c")
+private let logger = DeftLog.logger(label: "com.didactek.ftdi-synchronous-serial.ftdi-i2c")
 
 /// Use an FTDI FT232H to communicate with devices using I2C.
 ///
@@ -29,7 +29,6 @@ public class FtdiI2C: Ftdi {
 
     /// - Parameter overrideClockHz: Frequency at which to drive the bus; if not supplied, default to maxium for the mode.
     public init(ftdiAdapter: USBDevice, overrideClockHz: Int? = nil) throws {
-        logger.logLevel = .trace
         self.mode = .fast
         try super.init(ftdiAdapter: ftdiAdapter)
 
