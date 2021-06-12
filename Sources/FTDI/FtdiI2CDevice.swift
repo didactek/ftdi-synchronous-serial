@@ -30,49 +30,40 @@ public class FtdiI2CDevice {
     }
 
     /// Write bytes to the device, preceded by a 'start' and followed by a 'stop'.
-    public func write(data: Data) {
+    public func write(data: Data) throws {
         busReservedSemaphore.wait()
         defer {
             bus.sendStop()
             busReservedSemaphore.signal()
         }
-        // FIXME: I2CLink needs a mechanism to propagate failure
-        try? bus.write(address: address, data: data)
+        try bus.write(address: address, data: data)
     }
 
     /// Read bytes from the device, preceded by a 'start' and followed by a 'stop'.
     /// - Parameter count: Number of bytes to read.
     /// - Note: For devices that adopt a named register, address, or command idioms, use
     /// `writeAndRead` to send the name/address/command and read the response.
-    public func read(count: Int) -> Data {
+    public func read(count: Int) throws -> Data {
         busReservedSemaphore.wait()
         defer {
             bus.sendStop()
             busReservedSemaphore.signal()
         }
-        // FIXME: I2CLink needs a mechanism to propagate failure
-        let data = (try? bus.read(address: address, count: count)) ?? Data()
-        return data
+        return try bus.read(address: address, count: count)
     }
 
     /// Write bytes to the device, read a response, and then send a 'stop' to end the conversation.
     /// - Parameter sendFrom: Bytes to send in the first conversation fragment.
     /// - Parameter receiveCount: Number of bytes to read in the second conversation fragment.
     /// - Returns: Bytes read.
-    public func writeAndRead(sendFrom: Data, receiveCount: Int) -> Data {
+    public func writeAndRead(sendFrom: Data, receiveCount: Int) throws -> Data {
         busReservedSemaphore.wait()
         defer {
             bus.sendStop()
             busReservedSemaphore.signal()
         }
-        // FIXME: I2CLink needs a mechanism to propagate failure
-        do {
-            try bus.write(address: address, data: sendFrom)
-            let data = try bus.read(address: address, count: receiveCount)
-            return data
-        } catch {
-        }
-        // FIXME: I2CLink needs a mechanism to propagate failure
-        return Data()
+
+        try bus.write(address: address, data: sendFrom)
+        return try bus.read(address: address, count: receiveCount)
     }
 }

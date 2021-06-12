@@ -15,6 +15,6 @@ import FTDI
 func demoI2CRadio(ftdiDevice: USBDevice) {
     let bus = try! FtdiI2C(ftdiAdapter: ftdiDevice, overrideClockHz: 30_000)
     let radio = try! FtdiI2CDevice(busHost: bus, nodeAddress: 0x60)
-    let status = radio.read(count: 5)
+    let status = try! radio.read(count: 5)
     print(status.map {String($0, radix: 16)})
 }
